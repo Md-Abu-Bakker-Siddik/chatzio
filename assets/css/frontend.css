@@ -1,0 +1,2888 @@
+/* Chatzio - Premium Frontend v4.1 (Intercom-Class Redesign)
+ * Shadow DOM isolated. Theme-proof. Zero leaks.
+ * Animations use transform/opacity only (GPU composited). */
+
+/* === Custom Properties === */
+:host {
+  --chatzio-primary: #4f46e5;
+  --chatzio-secondary: #6366f1;
+  --chatzio-link-color: #2563eb;
+  --chatzio-font-size: 14px;
+  --chatzio-font:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --chatzio-bubble-size: 60px;
+  --chatzio-text: #111827;
+  --chatzio-text-muted: #6b7280;
+  --chatzio-bg: #ffffff;
+  --chatzio-bg-chat: #ffffff;
+  --chatzio-border: #e5e7eb;
+  --chatzio-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08);
+  --chatzio-radius: 16px;
+  --chatzio-spring: cubic-bezier(0.25, 1, 0.5, 1);
+  --chatzio-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* === Universal Reset === */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  vertical-align: baseline;
+}
+
+/* === Widget Container === */
+.chatzio-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999999;
+  font-family: var(--chatzio-font);
+  font-size: var(--chatzio-font-size);
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.5;
+  color: var(--chatzio-text);
+  direction: ltr;
+  text-align: left;
+  text-transform: none;
+  text-indent: 0;
+  text-shadow: none;
+  text-decoration: none;
+  letter-spacing: normal;
+  word-spacing: normal;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  visibility: visible;
+  opacity: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ====================================================================
+   TOGGLE WRAP — Contains toggle + proactive card as a single unit
+   ==================================================================== */
+.chatzio-toggle-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+/* ====================================================================
+   TOGGLE BUTTON — Premium with gradient, entrance bounce, pulse
+   ==================================================================== */
+.chatzio-toggle {
+  width: var(--chatzio-bubble-size);
+  height: var(--chatzio-bubble-size);
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--chatzio-primary),
+    var(--chatzio-secondary)
+  );
+  border: none;
+  box-shadow:
+    0 4px 24px color-mix(in srgb, var(--chatzio-primary) 35%, transparent),
+    var(--chatzio-shadow);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s var(--chatzio-ease);
+  position: relative;
+  overflow: visible;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  animation: chatzio-toggleEntrance 0.4s var(--chatzio-spring) 0.2s both;
+}
+
+.chatzio-toggle::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--chatzio-primary),
+    var(--chatzio-secondary)
+  );
+  opacity: 0;
+  z-index: -1;
+  animation: chatzio-breathe 3s ease-in-out 2s infinite;
+}
+
+.chatzio-toggle:hover {
+  transform: scale(1.08);
+  box-shadow:
+    0 6px 32px color-mix(in srgb, var(--chatzio-primary) 45%, transparent),
+    var(--chatzio-shadow);
+}
+
+.chatzio-toggle:active {
+  transform: scale(0.95);
+}
+
+.chatzio-toggle:focus,
+.chatzio-toggle:focus-visible {
+  outline: none;
+}
+
+.chatzio-toggle svg {
+  width: calc(var(--chatzio-bubble-size) * 0.45);
+  height: calc(var(--chatzio-bubble-size) * 0.45);
+  color: white;
+  fill: none;
+  transition: all 0.3s var(--chatzio-ease);
+  position: absolute;
+}
+
+.chatzio-toggle .chat-icon {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.chatzio-toggle .close-icon {
+  opacity: 0;
+  transform: scale(0.5) rotate(-90deg);
+}
+
+.chatzio-widget.open .chatzio-toggle .chat-icon {
+  opacity: 0;
+  transform: scale(0.5) rotate(90deg);
+}
+
+.chatzio-widget.open .chatzio-toggle .close-icon {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.chatzio-widget.open .chatzio-toggle {
+  background: #374151;
+  box-shadow: var(--chatzio-shadow);
+}
+
+.chatzio-widget.open .chatzio-toggle::before {
+  animation: none;
+  opacity: 0;
+}
+
+/* Status indicator (online dot) */
+.chatzio-status-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  background: #22c55e;
+  border: 2px solid white;
+  border-radius: 50%;
+  z-index: 2;
+}
+
+/* Notification Dot */
+.notification-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  background: #ef4444;
+  border: 2px solid white;
+  border-radius: 9px;
+  display: none;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  z-index: 3;
+  animation: chatzio-notifPulse 2s ease-in-out infinite;
+}
+
+.notification-dot.active {
+  display: flex;
+}
+
+/* ====================================================================
+   PROACTIVE MESSAGE BUBBLE
+   ==================================================================== */
+.chatzio-proactive {
+  position: relative;
+  background: var(--chatzio-bg);
+  color: var(--chatzio-text);
+  padding: 14px 20px;
+  border-radius: 16px 16px 4px 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  font-size: 15px;
+  line-height: 1.45;
+  min-width: 200px;
+  max-width: 320px;
+  max-width: min(320px, calc(100vw - 48px));
+  white-space: normal;
+  animation: chatzio-proactiveIn 0.4s var(--chatzio-spring) both;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.chatzio-proactive-close {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.chatzio-proactive-close:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+/* ====================================================================
+   CHAT WINDOW — Open AND Close animation
+   ==================================================================== */
+.chatzio-window {
+  position: absolute;
+  bottom: calc(var(--chatzio-bubble-size) + 20px);
+  right: 0;
+  width: 400px; /* Increased width */
+  height: 700px; /* Increased height */
+  max-height: calc(100vh - 120px);
+  background: var(--chatzio-bg);
+  border-radius: var(--chatzio-radius);
+  box-shadow: var(--chatzio-shadow);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  transform-origin: bottom right;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.chatzio-widget.open .chatzio-window {
+  display: flex;
+  animation: chatzio-windowOpen 0.4s var(--chatzio-spring);
+}
+
+.chatzio-widget.closing .chatzio-window {
+  display: flex;
+  animation: chatzio-windowClose 0.25s var(--chatzio-ease) forwards;
+}
+
+/* Left-positioned widget */
+:host(.position-bottom-left) .chatzio-widget {
+  right: auto;
+  left: 24px;
+}
+
+:host(.position-bottom-left) .chatzio-toggle-wrap {
+  align-items: flex-start;
+}
+
+:host(.position-bottom-left) .chatzio-proactive {
+  border-radius: 16px 16px 16px 4px;
+}
+
+:host(.position-bottom-left) .chatzio-window {
+  right: auto;
+  left: 0;
+  transform-origin: bottom left;
+}
+
+/* ====================================================================
+   HEADER — Minimal & Clean
+   ==================================================================== */
+.chatzio-header {
+  background: white; /* Clean white header by default */
+  color: var(--chatzio-text);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  position: relative;
+  border-bottom: 1px solid var(--chatzio-border);
+  z-index: 10;
+}
+
+.bot-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.bot-avatar-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--chatzio-bg-chat);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.bot-avatar-placeholder svg {
+  width: 20px;
+  height: 20px;
+  color: var(--chatzio-text-muted);
+  fill: none;
+}
+
+.header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.header-info h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--chatzio-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.header-subtitle {
+  font-size: 12px;
+  color: var(--chatzio-text-muted);
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.header-subtitle .online-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4ade80;
+  display: inline-block;
+}
+
+/* Free-tier quota banner (shown at >=50% for non-Pro users) */
+.chatzio-quota-banner {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 600;
+}
+.chatzio-quota-banner.info {
+  background: #eef4ff;
+  color: #274690;
+  border: 1px solid #c6d8ff;
+}
+.chatzio-quota-banner.warn {
+  background: #fff7e8;
+  color: #8a5a00;
+  border: 1px solid #ffd89a;
+}
+.chatzio-quota-banner.danger {
+  background: #fff1f1;
+  color: #972b2b;
+  border: 1px solid #f3c0c0;
+}
+
+.chatzio-upgrade-card {
+  border: 1px solid #d9e3ff;
+  background: linear-gradient(180deg, #f7f9ff 0%, #eef3ff 100%);
+  border-radius: 12px;
+  padding: 12px;
+}
+.chatzio-upgrade-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin-bottom: 6px;
+}
+.chatzio-upgrade-text {
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+.chatzio-upgrade-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+}
+.chatzio-upgrade-btn:hover {
+  filter: brightness(1.04);
+}
+
+.header-btn {
+  background: transparent;
+  border: none;
+  color: var(--chatzio-text-muted);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  outline: none;
+}
+
+.header-btn:hover {
+  background: #f3f4f6;
+  color: var(--chatzio-text);
+}
+
+.header-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke-width: 2;
+}
+
+/* New-chat / refresh button only on Chat tab */
+.chatzio-new-chat {
+  display: none;
+}
+.chatzio-widget.chat-tab-active .chatzio-new-chat {
+  display: flex;
+}
+
+/* ====================================================================
+   MESSAGES CONTAINER
+   ==================================================================== */
+.chatzio-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--chatzio-bg-chat);
+  overscroll-behavior: contain;
+}
+
+.chatzio-messages::-webkit-scrollbar {
+  width: 4px;
+}
+.chatzio-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chatzio-messages::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 2px;
+}
+.chatzio-messages {
+  scrollbar-width: thin;
+  scrollbar-color: #d4d4d8 transparent;
+}
+
+/* ====================================================================
+   MESSAGES
+   ==================================================================== */
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: chatzio-messageIn 0.3s var(--chatzio-ease);
+  max-width: 95%;
+}
+
+.user-message {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.bot-message {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+/* Bot messages: avatar hidden to maximize message space */
+.bot-message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+}
+.bot-message-row .inline-avatar,
+.bot-message-row .inline-avatar-placeholder {
+  display: none;
+}
+
+.inline-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+  margin-bottom: 2px;
+}
+
+.inline-avatar-placeholder {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-bottom: 2px;
+}
+
+.inline-avatar-placeholder svg {
+  width: 16px;
+  height: 16px;
+  color: #9ca3af;
+  fill: none;
+}
+
+.message.grouped {
+  margin-top: -6px;
+}
+.message.grouped .inline-avatar,
+.message.grouped .inline-avatar-placeholder {
+  visibility: hidden;
+}
+.message.grouped .message-meta {
+  display: none;
+}
+
+.message-content {
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.user-message .message-content {
+  background: linear-gradient(
+    135deg,
+    var(--chatzio-primary),
+    var(--chatzio-secondary)
+  );
+  color: white;
+  border-radius: 20px 20px 4px 20px;
+  box-shadow: 0 4px 12px
+    color-mix(in srgb, var(--chatzio-primary) 15%, transparent);
+}
+
+.bot-message .message-content {
+  background: #f3f4f6; /* Very light gray for bot bubbles */
+  color: var(--chatzio-text);
+  border-radius: 20px 20px 20px 4px;
+}
+
+.message-content p {
+  margin: 0;
+}
+.message-content p + p {
+  margin-top: 10px;
+}
+.message-content strong {
+  font-weight: 600;
+}
+.message-content em {
+  font-style: italic;
+}
+.message-content ul,
+.message-content ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+.message-content li {
+  margin: 4px 0;
+}
+.bot-message .message-content a {
+  color: var(--chatzio-link-color);
+  text-decoration: none;
+  font-weight: 500;
+}
+.bot-message .message-content a:hover {
+  text-decoration: underline;
+}
+.bot-message .message-content a.pc-card:hover,
+.bot-message .message-content .chatzio-product-cards-block a:hover {
+  text-decoration: none;
+}
+
+/* [[Product Name]] styled as link-colored text */
+.message-content .chatzio-product-ref {
+  color: var(--chatzio-link-color);
+  font-weight: 500;
+  text-decoration: none;
+}
+.message-content .chatzio-product-ref:hover {
+  text-decoration: underline;
+}
+
+/* Message meta */
+.message-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px 0;
+}
+
+.message-time {
+  font-size: 11px;
+  color: var(--chatzio-text-muted);
+}
+
+/* ====================================================================
+   INPUT AREA
+   ==================================================================== */
+.chatzio-input-area {
+  background: white;
+  padding: 12px 20px 16px;
+  flex-shrink: 0;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: #f9fafb;
+  border: 1.5px solid var(--chatzio-border);
+  border-radius: 24px;
+  padding: 6px 6px 6px 18px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--chatzio-primary);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--chatzio-primary) 12%, transparent);
+  background: white;
+}
+
+.message-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 6px 0;
+  font-size: 15px;
+  font-family: var(--chatzio-font);
+  resize: none;
+  max-height: 120px;
+  min-height: 24px;
+  line-height: 1.5;
+  color: var(--chatzio-text);
+  outline: none;
+}
+
+.message-input::placeholder {
+  color: #9ca3af;
+}
+
+.send-button {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--chatzio-primary),
+    var(--chatzio-secondary)
+  );
+  border: none;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px
+    color-mix(in srgb, var(--chatzio-primary) 25%, transparent);
+}
+
+.send-button:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px
+    color-mix(in srgb, var(--chatzio-primary) 35%, transparent);
+}
+
+.send-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #d1d5db;
+  box-shadow: none;
+}
+
+.send-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Branding section removed for premium look */
+
+/* ====================================================================
+   TABBED LAYOUT & PANELS
+   ==================================================================== */
+.chatzio-panels {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  background: white;
+}
+
+.chatzio-panel {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  background: white;
+}
+
+.chatzio-panel.active {
+  display: flex;
+  z-index: 1;
+}
+
+/* Home Panel Styling (Intercom Style) */
+.panel-home {
+  overflow-y: auto;
+}
+
+/* Big Gradient Hero */
+.home-hero {
+  background: linear-gradient(
+    135deg,
+    var(--chatzio-primary) 0%,
+    var(--chatzio-secondary) 100%
+  );
+  padding: 48px 24px 64px; /* Extra bottom padding for overlap */
+  position: relative;
+  color: white;
+}
+
+/* Glassmorphism Header IN Hero */
+.chatzio-widget.has-tabs .panel-home ~ .chatzio-header {
+  display: none; /* Hide default header on home tab if we build custom one */
+}
+
+/* Home Hero Logo (top-left, matches chat header avatar size) */
+.home-hero-logo {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.home-hero-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Custom Header actions for Home Tab */
+.home-header-actions {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 8px;
+}
+
+.home-header-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.home-header-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+.home-header-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke-width: 2;
+}
+
+.home-greeting {
+  margin-top: 42px;
+}
+
+.home-headline {
+  font-size: 28px; /* Big Greeting */
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 8px;
+  color: white;
+  letter-spacing: -0.5px;
+}
+
+.home-subtext {
+  font-size: 16px;
+  opacity: 0.9;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* Floating Cards Container */
+.home-content-cards {
+  padding: 0 20px 28px;
+  margin-top: -40px; /* Overlap the gradient */
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Starter Card */
+.starter-card {
+  background: white;
+  padding: 14px 16px;
+  border-radius: 14px;
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition:
+    transform 0.22s var(--chatzio-ease),
+    box-shadow 0.22s var(--chatzio-ease);
+  border: none;
+  width: 100%;
+  text-align: left;
+  min-height: 68px;
+}
+
+.starter-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.1),
+    0 0 0 1px color-mix(in srgb, var(--chatzio-primary) 12%, transparent);
+}
+
+.starter-card:active {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.starter-icon {
+  font-size: 24px;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--chatzio-primary) 8%, transparent),
+    color-mix(in srgb, var(--chatzio-secondary) 6%, transparent)
+  );
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.starter-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.starter-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--chatzio-text);
+  margin-bottom: 2px;
+  display: block;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  line-height: 1.3;
+}
+
+.starter-subtitle {
+  font-size: 12px;
+  color: var(--chatzio-text-muted);
+  display: block;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  line-height: 1.4;
+}
+
+.starter-arrow {
+  margin-left: auto;
+  color: var(--chatzio-primary);
+  opacity: 0;
+  transform: translateX(-8px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.starter-card:hover .starter-arrow {
+  opacity: 0.7;
+  transform: translateX(0);
+}
+
+/* News Section */
+.home-news-section {
+  padding: 8px 0 0;
+  margin-top: 6px;
+}
+
+/* Featured Products Section on Home Tab — same card style as Products tab */
+.home-featured-products-section {
+  padding: 8px 0 0;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.home-featured-products-section .news-label {
+  margin-bottom: 2px;
+}
+
+.home-news-section .news-item + .news-item {
+  margin-top: 8px;
+}
+
+.news-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--chatzio-text-muted);
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+}
+
+.news-item {
+  background: white;
+  border: none;
+  border-left: 3px solid
+    color-mix(in srgb, var(--chatzio-primary) 40%, transparent);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  transition:
+    transform 0.22s var(--chatzio-ease),
+    box-shadow 0.22s var(--chatzio-ease),
+    border-left-color 0.22s;
+  cursor: pointer;
+  display: block;
+  text-decoration: none;
+}
+
+.news-item:hover {
+  border-left-color: var(--chatzio-primary);
+  transform: translateY(-3px);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.1),
+    0 0 0 1px color-mix(in srgb, var(--chatzio-primary) 12%, transparent);
+}
+
+.news-item:has(.news-item-image) {
+  border-left: none;
+  border-right: none;
+}
+
+.news-item-image {
+  height: 120px;
+  max-height: 120px;
+  overflow: hidden;
+  border-radius: 12px 12px 0 0;
+  margin: -14px -16px 12px -16px;
+  background: var(--chatzio-border);
+}
+
+.news-item-image:first-child {
+  margin-top: -14px;
+}
+
+.news-item-image img {
+  width: 100%;
+  height: 100%;
+  max-height: 120px;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  vertical-align: middle;
+}
+
+.news-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--chatzio-text);
+  margin-bottom: 2px;
+  line-height: 1.35;
+}
+
+.news-item-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.news-item-content {
+  flex: 9;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.news-item-content .news-badge {
+  margin-top: 6px;
+  align-self: flex-start;
+}
+
+.news-item-link {
+  flex: 1;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  min-width: 36px;
+  align-self: stretch;
+  padding-bottom: 2px;
+}
+
+.news-link-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--chatzio-primary);
+  opacity: 0.5;
+  flex-shrink: 0;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.news-item:hover .news-link-icon {
+  opacity: 1;
+  transform: translate(1px, -1px);
+}
+
+/* News Item Description */
+.news-item-desc {
+  font-size: 13px;
+  color: var(--chatzio-text-muted);
+  line-height: 1.45;
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* News Badge Colors */
+.news-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--chatzio-primary) 8%, transparent);
+  color: var(--chatzio-primary);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.news-badge.badge-green {
+  background: #dcfce7;
+  color: #15803d;
+}
+.news-badge.badge-blue {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.news-badge.badge-orange {
+  background: #fff7ed;
+  color: #c2410c;
+}
+.news-badge.badge-red {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* Featured News Item — accent uses primary, no gradient */
+.news-item-featured {
+  border-left-color: var(--chatzio-primary) !important;
+  background: white !important;
+}
+
+/* News Empty State */
+.news-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--chatzio-text-muted);
+  font-size: 14px;
+}
+
+/* News Panel — do not set display here; .chatzio-panel.active controls visibility */
+.panel-news {
+  overflow: hidden;
+}
+
+/* News Hero Header — only visible when panel is active to prevent flash */
+.news-panel-hero {
+  background: linear-gradient(
+    135deg,
+    var(--chatzio-primary),
+    var(--chatzio-secondary)
+  );
+  padding: 24px 20px 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  visibility: hidden;
+}
+.panel-news.active .news-panel-hero {
+  visibility: visible;
+}
+.news-hero-icon {
+  width: 40px;
+  height: 40px;
+  color: white;
+  opacity: 0.9;
+  flex-shrink: 0;
+  fill: none;
+}
+.news-hero-text h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+  line-height: 1.2;
+}
+.news-hero-text p {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 3px 0 0;
+}
+
+.news-panel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.news-empty {
+  text-align: center;
+  color: var(--chatzio-text-muted);
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+/* Tab Bar - Bottom Navigation style */
+.chatzio-tab-bar {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 16px 10px;
+  background: white;
+  border-top: 1px solid var(--chatzio-border);
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  color: #9ca3af;
+  font-family: var(--chatzio-font);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.tab-btn svg {
+  width: 24px; /* Larger icons */
+  height: 24px;
+  stroke-width: 2;
+  fill: none;
+}
+
+.tab-btn:hover {
+  color: var(--chatzio-text);
+  background: #f9fafb;
+}
+
+.tab-btn.active {
+  color: var(--chatzio-primary);
+  background: transparent; /* No background on active, just color */
+}
+
+.tab-btn.active svg {
+  stroke-width: 2.5; /* Bolder icon */
+}
+
+/* Animations */
+@keyframes chatzio-slideInLeft {
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes chatzio-slideInRight {
+  from {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .chatzio-widget {
+    bottom: 20px;
+    right: 20px;
+  }
+  :host(.position-bottom-left) .chatzio-widget {
+    left: 20px;
+    right: auto;
+  }
+  .chatzio-window {
+    width: 100vw;
+    height: 100vh;
+    max-height: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 0;
+  }
+  /* Lead form on mobile: scroll from top so keyboard doesn't cover inputs */
+  .chatzio-lead-overlay {
+    justify-content: flex-start;
+    padding-top: 48px;
+    padding-bottom: 48px;
+  }
+}
+
+/* Helper Classes */
+.hidden {
+  display: none !important;
+}
+
+/* ====================================================================
+   NON-TABBED MODE — Classic single-panel layout
+   ==================================================================== */
+.chatzio-widget:not(.has-tabs) .chatzio-panels {
+  position: relative;
+}
+
+.chatzio-widget:not(.has-tabs) .panel-chat {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+/* Ensure header is always visible in simple mode */
+.chatzio-widget:not(.has-tabs) .chatzio-header {
+  display: flex !important;
+}
+
+/* Ensure messages area takes available space in simple mode */
+.chatzio-widget:not(.has-tabs) .chatzio-messages {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* ====================================================================
+   FEEDBACK BUTTONS
+   ==================================================================== */
+.message-feedback {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.feedback-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 6px;
+  color: var(--chatzio-text-muted);
+  opacity: 0.5;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  font-size: 14px;
+}
+
+.feedback-btn:hover:not(:disabled) {
+  opacity: 1;
+  background: #f1f5f9;
+  transform: scale(1.15);
+}
+
+.feedback-btn.selected {
+  opacity: 1;
+  color: var(--chatzio-primary);
+}
+
+.feedback-btn:disabled {
+  cursor: default;
+}
+
+/* ====================================================================
+   QUICK REPLIES (bar above input; hidden after first user message)
+   ==================================================================== */
+.chatzio-quick-replies-bar {
+  padding: 10px 0 4px;
+  background: var(--chatzio-bg);
+  transition:
+    opacity 0.2s,
+    max-height 0.2s;
+}
+.chatzio-quick-replies-bar.hidden {
+  display: none !important;
+}
+.chatzio-quick-replies-bar:empty {
+  display: none;
+}
+.chatzio-quick-replies {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding: 0 2px 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.chatzio-quick-replies::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-reply-btn {
+  padding: 4px 12px;
+  border-radius: 14px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1.5px solid var(--chatzio-primary);
+  background: var(--chatzio-bg);
+  color: var(--chatzio-primary);
+  font-size: 12px;
+  font-family: var(--chatzio-font);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  outline: none;
+  line-height: 1.3;
+}
+
+.quick-reply-btn:hover {
+  background: var(--chatzio-primary);
+  color: white;
+}
+
+/* ====================================================================
+   TYPING INDICATOR
+   ==================================================================== */
+.typing-indicator {
+  display: none;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+}
+.typing-indicator .inline-avatar,
+.typing-indicator .inline-avatar-placeholder {
+  display: none;
+}
+
+.typing-indicator.visible {
+  display: flex;
+}
+
+.typing-bubble {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  background: #f3f4f6;
+  border-radius: 20px 20px 20px 4px;
+}
+
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  background: #94a3b8;
+  border-radius: 50%;
+  animation: chatzio-typingWave 1.4s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* ====================================================================
+   STREAMING CURSOR
+   ==================================================================== */
+.message-content.streaming::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--chatzio-primary);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: chatzio-blink 0.8s step-end infinite;
+}
+
+/* ====================================================================
+   PRE-CHAT LEAD FORM
+   ==================================================================== */
+.chatzio-lead-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--chatzio-bg);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  text-align: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: chatzio-messageIn 0.3s var(--chatzio-ease);
+}
+
+.lead-form-heading {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--chatzio-text);
+  margin: 0 0 8px;
+}
+
+.lead-form-subtitle {
+  font-size: 13px;
+  color: var(--chatzio-text-muted);
+  margin: 0 0 20px;
+}
+
+.chatzio-lead-form {
+  width: 100%;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chatzio-lead-form input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--chatzio-border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: var(--chatzio-font);
+  color: var(--chatzio-text);
+  background: var(--chatzio-bg);
+  outline: none;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.chatzio-lead-form input:focus {
+  border-color: var(--chatzio-primary);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--chatzio-primary) 12%, transparent);
+}
+
+.chatzio-lead-form input::placeholder {
+  color: var(--chatzio-text-muted);
+}
+
+.lead-form-submit {
+  padding: 11px 20px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(
+    135deg,
+    var(--chatzio-primary),
+    var(--chatzio-secondary)
+  );
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--chatzio-font);
+  cursor: pointer;
+  transition:
+    transform 0.15s,
+    box-shadow 0.2s;
+  margin-top: 4px;
+}
+
+.lead-form-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px
+    color-mix(in srgb, var(--chatzio-primary) 30%, transparent);
+}
+
+.lead-form-skip {
+  background: none;
+  border: none;
+  color: var(--chatzio-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 8px;
+  font-family: var(--chatzio-font);
+  text-decoration: underline;
+}
+
+.lead-form-skip:hover {
+  color: var(--chatzio-text);
+}
+
+/* ====================================================================
+   PRODUCT CARDS (in-chat: link in text + vertical cards below)
+   ==================================================================== */
+
+/* Product name in message: simple link (single underline in brand color) */
+.chatzio-product-link {
+  color: var(--chatzio-primary);
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px solid var(--chatzio-primary);
+  transition: opacity 0.2s;
+}
+.chatzio-product-link:hover {
+  opacity: 0.85;
+  color: var(--chatzio-primary);
+  text-decoration: none;
+}
+/* Override generic link underline so product links don't get double underline */
+.bot-message .message-content a.chatzio-product-link,
+.bot-message .message-content a.chatzio-product-link:hover {
+  text-decoration: none !important;
+}
+
+/* Block of product cards inside the message bubble */
+.chatzio-product-cards-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  margin-bottom: 0;
+  width: 100%;
+  max-width: 100%;
+  padding-bottom: 4px;
+}
+
+/* Ensure product cards are fully visible */
+.chatzio-product-card-wrapper {
+  min-height: auto;
+  overflow: visible;
+}
+
+/* Simple text link for shop/category (appears after all cards) */
+.chatzio-shop-link-wrapper {
+  margin-top: 8px;
+  padding-top: 8px;
+  text-align: left;
+}
+
+.chatzio-shop-link {
+  color: var(--chatzio-primary);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.2s;
+}
+
+.chatzio-shop-link:hover {
+  color: var(--chatzio-primary-dark, #2563eb);
+  text-decoration: underline;
+}
+
+.chatzio-shop-link .chatzio-link-arrow {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+/* In-chat card uses same .pc-card layout as Products tab (horizontal, minimal) */
+.chatzio-product-card-inchat .pc-stock-badge.pc-stock-in {
+  color: #16a34a;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Legacy horizontal card (kept for any existing markup) */
+.chatzio-product-card {
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 240px;
+  margin: 10px 0;
+  background: white;
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  transition:
+    transform 0.22s var(--chatzio-ease),
+    box-shadow 0.22s var(--chatzio-ease);
+  cursor: pointer;
+}
+.chatzio-product-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.1),
+    0 0 0 1px color-mix(in srgb, var(--chatzio-primary) 12%, transparent);
+}
+.product-card-image {
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+  display: block;
+  background: #f1f5f9;
+}
+.product-card-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.product-card-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--chatzio-text);
+}
+.product-card-price {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--chatzio-primary);
+}
+.product-card-price del {
+  color: var(--chatzio-text-muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+.product-card-stock {
+  font-size: 11px;
+  font-weight: 500;
+}
+.product-card-stock.in-stock {
+  color: #16a34a;
+}
+.product-card-stock.out-of-stock {
+  color: #ef4444;
+}
+.product-card-btn {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--chatzio-primary);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+}
+
+/* ====================================================================
+   FAQ PANEL
+   ==================================================================== */
+.panel-faq {
+  padding: 0;
+}
+.faq-panel-inner {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.faq-panel-inner > .pc-slider {
+  flex-shrink: 0;
+  padding: 10px 20px 0;
+  margin-bottom: 0;
+}
+.panel-faq.active .pc-slider::before,
+.panel-faq.active .pc-slider::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  z-index: 1;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.panel-faq.active .pc-slider::before {
+  left: 0;
+  background: linear-gradient(to right, white 30%, transparent);
+  opacity: 0;
+}
+.panel-faq.active .pc-slider::after {
+  right: 0;
+  background: linear-gradient(to left, white 30%, transparent);
+}
+.faq-panel-cats {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 2px 2px 6px;
+}
+.faq-panel-cats::-webkit-scrollbar {
+  display: none;
+}
+.faq-panel-cats .faq-cat-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--chatzio-border);
+  background: var(--chatzio-bg);
+  color: var(--chatzio-text);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--chatzio-font);
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    color 0.2s;
+}
+.faq-panel-cats .faq-cat-btn:hover {
+  border-color: var(--chatzio-primary);
+  color: var(--chatzio-primary);
+}
+.faq-panel-cats .faq-cat-btn.active {
+  border-color: var(--chatzio-primary);
+  background: var(--chatzio-primary);
+  color: white;
+}
+
+/* Products panel (separate from FAQ) */
+.panel-products {
+  padding: 0;
+}
+
+.products-panel-inner {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 8px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.products-panel-inner > .faq-section-label {
+  margin-bottom: 0;
+}
+.products-panel-inner > .pc-slider {
+  margin-bottom: 4px;
+}
+/* Category slider — swipeable with fade edges */
+.pc-slider {
+  position: relative;
+}
+.panel-products.active .pc-slider::before,
+.panel-products.active .pc-slider::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  z-index: 1;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.panel-products.active .pc-slider::before {
+  left: 0;
+  background: linear-gradient(to right, white 30%, transparent);
+  opacity: 0; /* hidden initially; JS can toggle if needed */
+}
+.panel-products.active .pc-slider::after {
+  right: 0;
+  background: linear-gradient(to left, white 30%, transparent);
+}
+.products-panel-cats {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 2px 2px 6px;
+}
+.products-panel-cats::-webkit-scrollbar {
+  display: none;
+}
+.products-panel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0 12px;
+}
+
+.faq-search {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--chatzio-border);
+  background: white;
+  flex-shrink: 0;
+}
+
+.faq-search-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--chatzio-border);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: var(--chatzio-font);
+  color: var(--chatzio-text);
+  background: #f9fafb;
+  outline: none;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.faq-search-input:focus {
+  border-color: var(--chatzio-primary);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--chatzio-primary) 12%, transparent);
+}
+
+.faq-search-input::placeholder {
+  color: var(--chatzio-text-muted);
+}
+
+.faq-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.faq-loading,
+.faq-empty,
+.faq-error {
+  text-align: center;
+  color: var(--chatzio-text-muted);
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+.faq-item {
+  border: none;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  background: white;
+  overflow: hidden;
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  transition:
+    transform 0.22s var(--chatzio-ease),
+    box-shadow 0.22s var(--chatzio-ease);
+}
+
+.faq-item:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.1),
+    0 0 0 1px color-mix(in srgb, var(--chatzio-primary) 12%, transparent);
+}
+
+.faq-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--chatzio-font);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--chatzio-text);
+  text-align: left;
+  outline: none;
+}
+
+.faq-item-header:hover {
+  background: #f9fafb;
+}
+.faq-item-title {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.faq-chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--chatzio-text-muted);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+  fill: none;
+}
+
+.faq-item.expanded .faq-chevron {
+  transform: rotate(180deg);
+}
+
+.faq-item-body {
+  display: none;
+  padding: 5px 14px 14px;
+}
+.faq-item.expanded .faq-item-body {
+  display: block;
+}
+
+.faq-item-body p {
+  font-size: 13px;
+  color: var(--chatzio-text-muted);
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+
+.faq-ask-btn {
+  display: inline-block;
+  padding: 6px 14px;
+  border: 1px solid var(--chatzio-primary);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--chatzio-primary);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--chatzio-font);
+  cursor: pointer;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.faq-ask-btn:hover {
+  background: var(--chatzio-primary);
+  color: white;
+}
+
+/* FAQ Categories — style as horizontal slider (matches .faq-panel-cats) */
+.faq-categories {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 2px 2px 6px;
+  margin-bottom: 8px;
+}
+.faq-categories::-webkit-scrollbar {
+  display: none;
+}
+.faq-cat-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--chatzio-border);
+  background: var(--chatzio-bg);
+  color: var(--chatzio-text);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--chatzio-font);
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    color 0.2s;
+}
+.faq-cat-btn:hover {
+  border-color: var(--chatzio-primary);
+  color: var(--chatzio-primary);
+}
+.faq-cat-btn.active {
+  border-color: var(--chatzio-primary);
+  background: var(--chatzio-primary);
+  color: white;
+}
+
+/* FAQ Product Section */
+.faq-product-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--chatzio-border);
+}
+
+.faq-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--chatzio-text-muted);
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.faq-product-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.faq-product-cat-btn {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--chatzio-border);
+  background: white;
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--chatzio-text);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--chatzio-font);
+  outline: none;
+}
+
+.faq-product-cat-btn:hover {
+  border-color: var(--chatzio-primary);
+  background: #f5f3ff;
+}
+.faq-product-cat-btn.active {
+  background: var(--chatzio-primary);
+  border-color: var(--chatzio-primary);
+  color: white;
+}
+.faq-product-cat-btn.active .cat-count {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.faq-product-cat-btn .cat-count {
+  color: var(--chatzio-text-muted);
+  font-size: 11px;
+}
+
+/* Product Cards (Browse Products) */
+.faq-products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pc-shop-link {
+  display: block;
+  margin-top: 10px;
+  padding: 10px 14px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--chatzio-primary);
+  background: color-mix(in srgb, var(--chatzio-primary) 10%, #fff);
+  border: 1px solid var(--chatzio-primary);
+  border-radius: 10px;
+  text-decoration: none;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+.pc-shop-link:hover {
+  background: var(--chatzio-primary);
+  color: #fff;
+}
+
+.pc-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px 7px 8px;
+  background: #ffffff;
+  border: none;
+  border-radius: 12px;
+  text-decoration: none;
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  transition:
+    transform 0.22s var(--chatzio-ease),
+    box-shadow 0.22s var(--chatzio-ease);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.pc-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.1),
+    0 0 0 1px color-mix(in srgb, var(--chatzio-primary) 12%, transparent);
+}
+.pc-card.pc-out:not(.pc-has-notify) {
+  opacity: 0.55;
+}
+.pc-card.pc-highlighted {
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.06),
+    0 0 0 1px color-mix(in srgb, var(--chatzio-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--chatzio-primary) 3%, #ffffff);
+  position: relative;
+}
+.pc-highlight-badge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 10px;
+  background: var(--chatzio-primary);
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 1;
+  line-height: 1.2;
+}
+
+/* Product image — fixed size for consistent alignment */
+.pc-img {
+  width: 55px;
+  height: 55px;
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #f5f5f5;
+}
+.pc-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.pc-img-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c4c4c4;
+}
+.pc-img-empty svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Product body — takes remaining space, aligned left */
+.pc-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.pc-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--chatzio-text);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pc-prices {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pc-price {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--chatzio-primary);
+  flex-shrink: 0;
+}
+.pc-price.pc-sale {
+  color: #16a34a;
+}
+.pc-price.pc-strikethrough {
+  text-decoration: line-through;
+  font-size: 11px;
+  font-weight: 400;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.pc-stock-badge {
+  font-size: 10px;
+  font-weight: 500;
+  color: #ef4444;
+}
+
+/* Arrow icon — fixed position at end */
+.pc-arrow {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  flex-shrink: 0;
+  color: var(--chatzio-text-muted);
+  transition:
+    color 0.2s,
+    transform 0.2s;
+}
+.pc-card:hover .pc-arrow {
+  color: var(--chatzio-primary);
+  transform: translateX(2px);
+}
+
+/* Card with Add to cart (simple products) — same layout as arrow cards, hover on whole card */
+.pc-card.pc-has-add-to-cart {
+  padding: 0;
+  text-decoration: none;
+  cursor: default;
+  transition: all 0.2s ease;
+}
+.pc-card.pc-has-add-to-cart:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.1),
+    0 0 0 1px color-mix(in srgb, var(--chatzio-primary) 12%, transparent);
+}
+.pc-card-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px 7px 8px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+.pc-add-to-cart-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding: 6px;
+  margin: 6px 8px 6px 4px;
+  background: none;
+  border: none;
+  color: var(--chatzio-text-muted);
+  text-decoration: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    color 0.2s,
+    opacity 0.2s;
+}
+.pc-add-to-cart-btn:hover:not(:disabled):not(.pc-adding):not(.pc-added) {
+  color: var(--chatzio-primary);
+}
+.pc-add-to-cart-btn svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.pc-add-to-cart-btn span {
+  display: none;
+  font-size: 12px;
+  font-weight: 600;
+}
+.pc-add-to-cart-btn.pc-added span {
+  display: inline;
+  color: #16a34a;
+}
+.pc-add-to-cart-btn.pc-added svg {
+  display: none;
+}
+.pc-add-to-cart-btn:disabled,
+.pc-add-to-cart-btn.pc-adding {
+  opacity: 0.6;
+  cursor: wait;
+}
+.pc-add-to-cart-btn.pc-added {
+  color: #16a34a;
+  cursor: default;
+}
+
+/* Card with Notify Me button (out of stock products) */
+.pc-card.pc-has-notify {
+  padding: 0;
+  text-decoration: none;
+  cursor: default;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+.pc-card.pc-has-notify:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.1),
+    0 0 0 1px rgba(79, 70, 229, 0.15);
+}
+.pc-card.pc-has-notify .pc-card-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 6px 7px 8px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+.pc-notify-btn {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 4px;
+  padding: 5px 10px;
+  margin: 6px 8px;
+  background: var(--chatzio-primary, #4f46e5);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+  font-family: inherit;
+  line-height: 1.2;
+}
+.pc-notify-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.pc-notify-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+.pc-notify-btn:disabled {
+  cursor: default;
+}
+.pc-notify-btn.pc-notify-processing {
+  opacity: 0.6;
+  cursor: wait;
+}
+/* Confirmation message — shown below the product card */
+.pc-notify-confirmation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--chatzio-primary);
+}
+.pc-notify-confirmation svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* Inline email input row — inside card */
+.pc-notify-email-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--chatzio-border, #f1f5f9);
+  width: 100%;
+}
+.pc-notify-email-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--chatzio-border, #e2e8f0);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  background: var(--chatzio-input-bg, #fff);
+  color: var(--chatzio-text, #1e293b);
+  transition: border-color 0.2s;
+}
+.pc-notify-email-input:focus {
+  border-color: var(--chatzio-primary);
+}
+.pc-notify-email-input.pc-input-error {
+  border-color: #ef4444;
+}
+.pc-notify-email-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--chatzio-primary, #4f46e5);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.2s;
+  padding: 0;
+}
+.pc-notify-email-submit:hover {
+  opacity: 0.85;
+}
+.pc-notify-email-submit svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ====================================================================
+   HISTORY PANEL
+   ==================================================================== */
+.panel-history {
+  padding: 0;
+}
+
+.history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 20px 12px;
+}
+
+.history-empty {
+  text-align: center;
+  color: var(--chatzio-text-muted);
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: white;
+  border: none;
+  border-radius: 12px;
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  cursor: pointer;
+  transition:
+    transform 0.22s var(--chatzio-ease),
+    box-shadow 0.22s var(--chatzio-ease);
+  text-align: left;
+  font-family: var(--chatzio-font);
+  outline: none;
+  width: 100%;
+}
+
+.history-item:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.1),
+    0 0 0 1px color-mix(in srgb, var(--chatzio-primary) 12%, transparent);
+}
+
+.history-item-content {
+  flex: 1;
+  min-width: 0;
+}
+.history-item-preview {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--chatzio-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.history-item-time {
+  display: block;
+  font-size: 11px;
+  color: var(--chatzio-text-muted);
+  margin-top: 2px;
+}
+
+.history-chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--chatzio-text-muted);
+  flex-shrink: 0;
+  fill: none;
+}
+
+.history-clear {
+  flex-shrink: 0;
+  margin: 0 20px 12px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    var(--chatzio-primary),
+    var(--chatzio-secondary)
+  );
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--chatzio-font);
+  cursor: pointer;
+  transition:
+    transform 0.2s var(--chatzio-ease),
+    box-shadow 0.22s var(--chatzio-ease);
+  outline: none;
+  box-shadow: 0 2px 12px
+    color-mix(in srgb, var(--chatzio-primary) 35%, transparent);
+}
+
+.history-clear:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px
+    color-mix(in srgb, var(--chatzio-primary) 45%, transparent);
+}
+
+/* Inline new chat button removed - now in header */
+
+/* ====================================================================
+   STARTER ICON
+   ==================================================================== */
+.starter-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  background: #f3f4f6;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.starter-text {
+  flex: 1;
+  min-width: 100px; /* Ensure enough room for text to flow horizontally */
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: visible;
+}
+
+.starter-arrow svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ====================================================================
+   ANIMATIONS
+   ==================================================================== */
+@keyframes chatzio-toggleEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(20px);
+  }
+  70% {
+    transform: scale(1.1) translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes chatzio-breathe {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes chatzio-notifPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes chatzio-windowOpen {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes chatzio-windowClose {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+}
+
+@keyframes chatzio-messageIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes chatzio-typingWave {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+@keyframes chatzio-proactiveIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes chatzio-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes chatzio-slideOutLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+}
+
+@keyframes chatzio-slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(20px);
+    opacity: 0;
+  }
+}
+
+/* Panel slide classes */
+.chatzio-panel.slide-in-left {
+  animation: chatzio-slideInLeft 0.3s var(--chatzio-ease);
+}
+.chatzio-panel.slide-in-right {
+  animation: chatzio-slideInRight 0.3s var(--chatzio-ease);
+}
+.chatzio-panel.slide-out-left {
+  animation: chatzio-slideOutLeft 0.3s var(--chatzio-ease) forwards;
+}
+.chatzio-panel.slide-out-right {
+  animation: chatzio-slideOutRight 0.3s var(--chatzio-ease) forwards;
+}
+
+/* ====================================================================
+   FOCUS STATES
+   ==================================================================== */
+.chatzio-toggle:focus-visible,
+.header-btn:focus-visible,
+.send-button:focus-visible {
+  outline: 2px solid var(--chatzio-primary);
+  outline-offset: 2px;
+}
+
+.message-input:focus-visible {
+  outline: none;
+}
+.quick-reply-btn:focus-visible {
+  outline: 2px solid var(--chatzio-primary);
+  outline-offset: 2px;
+}
+.feedback-btn:focus-visible {
+  outline: 2px solid var(--chatzio-primary);
+  outline-offset: 1px;
+}
+
+/* ====================================================================
+   MOBILE RESPONSIVE (tabbed)
+   ==================================================================== */
+@media (max-width: 480px) {
+  .chatzio-widget.open {
+    bottom: 0;
+    right: 0;
+    left: 0;
+    top: 0;
+  }
+
+  .chatzio-window {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border-radius: 0;
+    transform-origin: bottom center;
+  }
+
+  .chatzio-header {
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+
+  .chatzio-input-area {
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+
+  .message-input {
+    font-size: 16px;
+  }
+  .chatzio-tab-bar {
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+  }
+} /* ====================================================================
+   REDUCED MOTION
+   ==================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
