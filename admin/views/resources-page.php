@@ -1,7 +1,5 @@
 <?php
 if (!defined('ABSPATH')) exit;
-$is_pro = isset($is_pro) ? (bool) $is_pro : (class_exists('Chatzio_License') && Chatzio_License::is_pro());
-$upgrade_url = apply_filters('chatzio_upgrade_url', 'https://chatzio.pro/pricing');
 
 // Get filter values
 $search_query = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
@@ -33,25 +31,6 @@ $file_types = array_unique(array_column($resources, 'file_type'));
 ?>
 
 <div class="wrap chatzio-admin chatzio-resources-v2">
-    <div class="chatzio-pro-page-lock <?php echo $is_pro ? 'is-pro' : 'is-free'; ?>">
-    <?php if (!$is_pro): ?>
-        <div class="chatzio-pro-page-lock-overlay">
-            <div class="chatzio-pro-page-lock-glass">
-                <div class="chatzio-pro-page-lock-badge"><?php esc_html_e('Pro Feature', 'chatzio-ai'); ?></div>
-                <h2><?php esc_html_e('Unlock this in Pro', 'chatzio-ai'); ?></h2>
-                <p><?php esc_html_e('Resources train Chatzio on your private business knowledge and can deliver up to 200-300% better response performance for context-heavy customer questions.', 'chatzio-ai'); ?></p>
-                <ul class="chatzio-pro-page-lock-list">
-                    <li><?php esc_html_e('Upload PDFs, docs, and internal reference files', 'chatzio-ai'); ?></li>
-                    <li><?php esc_html_e('200-300% stronger business-context answer quality', 'chatzio-ai'); ?></li>
-                    <li><?php esc_html_e('Consistent replies across support and sales chats', 'chatzio-ai'); ?></li>
-                </ul>
-                <div class="chatzio-pro-page-lock-actions">
-                    <a class="button button-primary button-hero" target="_blank" rel="noopener" href="<?php echo esc_url($upgrade_url); ?>"><?php esc_html_e('Upgrade to Pro', 'chatzio-ai'); ?></a>
-                    <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=chatzio-plans')); ?>"><?php esc_html_e('Compare plans', 'chatzio-ai'); ?></a>
-                </div>
-            </div>
-        </div>
-    <?php endif; ?>
     <div class="chatzio-shell">
         <div class="chatzio-page-header">
             <div>
@@ -230,7 +209,6 @@ $file_types = array_unique(array_column($resources, 'file_type'));
         <?php endif; ?>
 
     </div>
-</div>
 </div>
 
 <!-- Edit Resource Modal -->
@@ -876,7 +854,70 @@ jQuery(document).ready(function($) {
             $(this).closest('form').submit();
         }
     });
-
+    
+    // Upload area click
+    $('#upload-area').on('click', function() {
+        $('#resource-file-input').click();
+    });
+    
+    $('#select-file-btn').on('click', function(e) {
+        e.stopPropagation();
+        $('#resource-file-input').click();
+    });
+    
+    // Drag & drop
+    $('#upload-area').on('dragover', function(e) {
+        e.preventDefault();
+        $(this).addClass('dragover');
+    }).on('dragleave drop', function(e) {
+        e.preventDefault();
+        $(this).removeClass('dragover');
+    }).on('drop', function(e) {
+        var files = e.originalEvent.dataTransfer.files;
+        if (files.length > 0) {
+            $('#resource-file-input')[0].files = files;
+            handleFileUpload(files[0]);
+        }
+    });
+    
+    // File input change
+    $('#resource-file-input').on('change', function() {
+        if (this.files.length > 0) {
+            handleFileUpload(this.files[0]);
+        }
+    });
+    
+    function handleFileUpload(file) {
+        var formData = new FormData();
+        formData.append('action', 'chatzio_upload_resource');
+        formData.append('nonce', chatzioAdmin.nonce);
+        formData.append('resource_file', file);
+        
+        $('#upload-progress').show();
+        $('#upload-result').html('');
+        
+        $.ajax({
+            url: chatzioAdmin.ajaxUrl,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                $('#upload-progress').hide();
+                if (response.success) {
+                    $('#upload-result').html('<div class="notice notice-success"><p>' + response.data.message + '</p></div>');
+                    setTimeout(function() { location.reload(); }, 1500);
+                } else {
+                    $('#upload-result').html('<div class="notice notice-error"><p>' + response.data.message + '</p></div>');
+                }
+            },
+            error: function() {
+                $('#upload-progress').hide();
+                $('#upload-result').html('<div class="notice notice-error"><p>Upload failed. Please try again.</p></div>');
+            }
+        });
+    }
+    
     // Paste form handled by admin.js (initResourcePaste)
     // Delete resource handled by admin.js (initResourceDelete)
 

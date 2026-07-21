@@ -125,9 +125,6 @@
     bindEvents();
     console.timeEnd("[chatzio] bindEvents");
 
-    // Free-tier quota hint (50%/80%/100%).
-    updateQuotaBanner(cfg && cfg.quota ? cfg.quota : null);
-
     initProactiveMessage();
 
     if (shouldResumeSession) {
@@ -248,8 +245,6 @@
     var placeholder = escapeAttr(s.placeholder || "Type your message...");
     var logo = s.logo || "";
     var time = formatTime(new Date());
-    var quotaBannerHtml =
-      '<div class="chatzio-quota-banner" hidden aria-live="polite"></div>';
 
     // Determine widget mode and tabs
     var widgetMode = s.widgetMode || "tabbed";
@@ -456,7 +451,6 @@
       botName +
       "</h3>" +
       '<div class="header-subtitle"><span class="online-dot"></span> Usually replies instantly</div>' +
-      quotaBannerHtml +
       "</div>" +
       '<button class="header-btn chatzio-new-chat" type="button" title="New conversation"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg></button>' +
       '<button class="header-btn chatzio-minimize" aria-label="Close chat" type="button">' +
@@ -605,64 +599,6 @@
     if (productsEnabled) loadProductsPanel();
     if (historyEnabled) renderHistory();
     if (homeEnabled) loadFeaturedProducts(); // Load featured products for Home tab
-  }
-
-  function updateQuotaBanner(quota) {
-    var el = $(".chatzio-quota-banner");
-    if (!el) return;
-    var q = quota || (cfg && cfg.quota ? cfg.quota : null);
-    if (!q || q.isPro) {
-      el.hidden = true;
-      el.className = "chatzio-quota-banner";
-      el.textContent = "";
-      return;
-    }
-    var used = Math.max(0, parseInt(q.dailyUsed, 10) || 0);
-    var limit = Math.max(1, parseInt(q.dailyLimit, 10) || 20);
-    var pct = Math.max(0, Math.min(100, parseInt(q.dailyPercent, 10) || Math.floor((used / limit) * 100)));
-    var remaining = Math.max(0, limit - used);
-
-    if (pct < 50) {
-      el.hidden = true;
-      el.className = "chatzio-quota-banner";
-      el.textContent = "";
-      return;
-    }
-
-    var level = pct >= 100 ? "danger" : pct >= 80 ? "warn" : "info";
-    var msg = "";
-    if (pct >= 100) {
-      msg = "Daily free limit reached (" + used + "/" + limit + "). Upgrade to continue chatting.";
-    } else if (pct >= 80) {
-      msg = "You are close to today’s free limit: " + used + "/" + limit + " used (" + remaining + " left).";
-    } else {
-      msg = "Free usage today: " + used + "/" + limit + " messages.";
-    }
-    el.hidden = false;
-    el.className = "chatzio-quota-banner " + level;
-    el.textContent = msg;
-  }
-
-  function renderUpgradePrompt(quota) {
-    var q = quota || (cfg && cfg.quota ? cfg.quota : null);
-    var used = q && q.dailyUsed ? parseInt(q.dailyUsed, 10) : 0;
-    var limit = q && q.dailyLimit ? parseInt(q.dailyLimit, 10) : 20;
-    var url = cfg && cfg.upgradeUrl ? cfg.upgradeUrl : "https://chatzio.pro/pricing";
-
-    var html =
-      '<div class="chatzio-upgrade-card">' +
-      '<div class="chatzio-upgrade-title">Free limit reached</div>' +
-      '<div class="chatzio-upgrade-text">You used ' +
-      used +
-      "/" +
-      limit +
-      " messages today. Upgrade to Pro for higher limits and uninterrupted chat.</div>" +
-      '<a class="chatzio-upgrade-btn" href="' +
-      escapeAttr(url) +
-      '" target="_blank" rel="noopener">Upgrade to Pro</a>' +
-      "</div>";
-
-    addMessage(html, "bot");
   }
 
   function buildNewsHtml(items, sectionTitle, featuredIds) {
@@ -1389,10 +1325,6 @@
             role: "assistant",
             content: data.data.raw_response || stripHtml(data.data.response),
           });
-          if (data.data && data.data.quota) {
-            cfg.quota = data.data.quota;
-            updateQuotaBanner(data.data.quota);
-          }
           saveCurrentSession();
         } else {
           // Log error details to console for debugging
@@ -1404,15 +1336,7 @@
           if (data.data && data.data.debug) {
             console.error("[Chatzio Debug]", data.data.debug);
           }
-          if (data.data && data.data.code === "free_daily_quota_reached") {
-            renderUpgradePrompt(data.data.quota || null);
-          } else {
-            addMessage("An error occurred: " + escapeHtml(errMsg), "bot");
-          }
-          if (data.data && data.data.quota) {
-            cfg.quota = data.data.quota;
-            updateQuotaBanner(data.data.quota);
-          }
+          addMessage("An error occurred: " + escapeHtml(errMsg), "bot");
         }
       })
       .catch(function (err) {

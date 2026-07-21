@@ -14,7 +14,6 @@ class Chatzio_Rate_Limiter {
     const MESSAGES_PER_MINUTE = 8;
     const MESSAGES_PER_HOUR   = 60;
     const MESSAGES_PER_DAY    = 300;
-    const FREE_MESSAGES_PER_DAY = 20;
     const MAX_MESSAGE_LENGTH  = 1000; // characters
 
     /**
@@ -127,69 +126,5 @@ class Chatzio_Rate_Limiter {
         $ip = isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
         $ip = filter_var($ip, FILTER_VALIDATE_IP);
         return $ip ? $ip : '0.0.0.0';
-    }
-
-    /**
-     * Enforce free-tier daily quota (calendar day in site timezone).
-     * Pro users are expected to bypass this check in caller logic.
-     *
-     * @return true|\WP_Error
-     */
-    public static function check_free_daily_quota() {
-        $usage = self::get_free_daily_usage();
-        if ($usage['count'] >= $usage['limit']) {
-            return new WP_Error(
-                'free_daily_quota_reached',
-                sprintf(
-                    /* translators: %d: daily free message limit */
-                    __('You have reached today\'s free limit (%d messages). Please upgrade to Pro for a higher quota.', 'chatzio-ai'),
-                    (int) $usage['limit']
-                ),
-                $usage
-            );
-        }
-
-        $ip = self::get_client_ip();
-        $day = wp_date('Y-m-d');
-        $key = 'chatzio_free_quota_' . md5($ip);
-        $row = get_option($key, []);
-        if (!is_array($row)) {
-            $row = [];
-        }
-        if (!isset($row['day']) || $row['day'] !== $day) {
-            $row = [
-                'day'   => $day,
-                'count' => 1,
-            ];
-        } else {
-            $row['count'] = isset($row['count']) ? ((int) $row['count'] + 1) : 1;
-        }
-        update_option($key, $row, false);
-        return true;
-    }
-
-    /**
-     * Get free-tier usage for current visitor IP (for banners / warnings).
-     *
-     * @return array{count:int,limit:int,remaining:int,percent:int}
-     */
-    public static function get_free_daily_usage() {
-        $ip = self::get_client_ip();
-        $day = wp_date('Y-m-d');
-        $key = 'chatzio_free_quota_' . md5($ip);
-        $row = get_option($key, []);
-        if (!is_array($row)) {
-            $row = [];
-        }
-        $count = (isset($row['day']) && $row['day'] === $day && isset($row['count'])) ? (int) $row['count'] : 0;
-        $limit = (int) self::FREE_MESSAGES_PER_DAY;
-        $remaining = max(0, $limit - $count);
-        $percent = $limit > 0 ? (int) floor(($count / $limit) * 100) : 0;
-        return [
-            'count'     => $count,
-            'limit'     => $limit,
-            'remaining' => $remaining,
-            'percent'   => $percent,
-        ];
     }
 }

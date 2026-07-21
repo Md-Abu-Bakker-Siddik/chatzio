@@ -1,8 +1,4 @@
-<?php
-if (!defined('ABSPATH')) exit;
-$is_pro = isset($is_pro) ? (bool) $is_pro : (class_exists('Chatzio_License') && Chatzio_License::is_pro());
-$upgrade_url = apply_filters('chatzio_upgrade_url', 'https://chatzio.pro/pricing');
-?>
+<?php if (!defined('ABSPATH')) exit; ?>
 
 <div class="wrap chatzio-admin chatzio-analytics-v3">
     <div class="chatzio-shell">
@@ -86,19 +82,6 @@ $upgrade_url = apply_filters('chatzio_upgrade_url', 'https://chatzio.pro/pricing
                 <canvas id="chart-trends"></canvas>
             </div>
         </div>
-
-        <!-- SECTION 3-6: Pro analytics (teaser mode for free) -->
-        <div class="av3-pro-zone-wrap <?php echo $is_pro ? 'is-pro' : 'is-free'; ?>">
-        <?php if (!$is_pro): ?>
-            <div class="av3-pro-zone-overlay">
-                <div class="av3-pro-zone-glass">
-                    <div class="av3-pro-zone-badge">Pro Analytics</div>
-                    <h3>Unlock full analytics intelligence</h3>
-                    <p>You can currently see core KPIs and trend graph. Upgrade to access behavior heatmaps, intent analysis, unanswered query insights, and conversion funnel intelligence.</p>
-                    <a class="button button-primary button-hero" target="_blank" rel="noopener" href="<?php echo esc_url($upgrade_url); ?>">Upgrade to Pro</a>
-                </div>
-            </div>
-        <?php endif; ?>
 
         <!-- SECTION 3: Behavioral Intelligence -->
         <div class="av3-section-title">
@@ -216,7 +199,6 @@ $upgrade_url = apply_filters('chatzio_upgrade_url', 'https://chatzio.pro/pricing
                 </div>
             </div>
         </div>
-        </div>
 
     </div>
 </div>
@@ -232,70 +214,6 @@ $upgrade_url = apply_filters('chatzio_upgrade_url', 'https://chatzio.pro/pricing
 
 .chatzio-analytics-v3 .chatzio-shell {
     padding: 0 !important;
-}
-
-/* --- Pro zone teaser (blur lock for free plan) --- */
-.av3-pro-zone-wrap {
-    position: relative !important;
-}
-.av3-pro-zone-wrap.is-free {
-    margin-top: 4px !important;
-}
-.av3-pro-zone-wrap.is-free > .av3-section-title,
-.av3-pro-zone-wrap.is-free > .av3-grid,
-.av3-pro-zone-wrap.is-free > .av3-card {
-    filter: blur(4px) saturate(0.85) !important;
-    user-select: none !important;
-    pointer-events: none !important;
-}
-.av3-pro-zone-overlay {
-    position: absolute !important;
-    inset: 0 !important;
-    z-index: 15 !important;
-    display: flex !important;
-    align-items: flex-start !important;
-    justify-content: center !important;
-    padding-top: 70px !important;
-    pointer-events: none !important;
-}
-.av3-pro-zone-glass {
-    max-width: 760px !important;
-    pointer-events: auto !important;
-    text-align: center !important;
-    border-radius: 16px !important;
-    padding: 24px 22px !important;
-    border: 1px solid rgba(255,255,255,0.4) !important;
-    background:
-      radial-gradient(800px 180px at 5% -10%, rgba(79,70,229,0.18), transparent 55%),
-      radial-gradient(700px 180px at 95% -10%, rgba(59,130,246,0.16), transparent 55%),
-      linear-gradient(135deg, rgba(255,255,255,0.76), rgba(255,255,255,0.62)) !important;
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
-    box-shadow: 0 12px 30px rgba(15,23,42,0.12) !important;
-}
-.av3-pro-zone-badge {
-    display: inline-block !important;
-    margin-bottom: 10px !important;
-    padding: 3px 10px !important;
-    border-radius: 999px !important;
-    background: #e9f1ff !important;
-    border: 1px solid #bfd3fb !important;
-    color: #1f4c93 !important;
-    font-size: 11px !important;
-    font-weight: 700 !important;
-    letter-spacing: .4px !important;
-    text-transform: uppercase !important;
-}
-.av3-pro-zone-glass h3 {
-    margin: 0 0 8px !important;
-    font-size: 24px !important;
-    color: #0f172a !important;
-}
-.av3-pro-zone-glass p {
-    margin: 0 0 14px !important;
-    color: #4b5563 !important;
-    font-size: 14px !important;
-    line-height: 1.5 !important;
 }
 
 /* --- Loading --- */

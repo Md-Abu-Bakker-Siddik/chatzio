@@ -11,196 +11,15 @@ class Chatzio_Admin {
     
     public function __construct() {
         add_action('admin_menu', [$this, 'add_admin_menu']);
-        add_action('admin_menu', [$this, 'trim_chatzio_menu_without_license'], 999);
-        add_action('admin_init', [$this, 'register_settings'], 5);
-        add_action('admin_init', [$this, 'redirect_chatzio_pages_without_license'], 1);
-        add_action('admin_post_chatzio_download_plans_csv', [$this, 'download_plans_csv']);
+        add_action('admin_init', [$this, 'register_settings']);
         add_action('admin_notices', [$this, 'render_admin_notices'], 5);
         add_action('admin_head', [$this, 'output_menu_icon_css']);
-        add_action('admin_head', [$this, 'print_chatzio_license_badge_styles']);
-        add_action('in_admin_header', [$this, 'render_chatzio_license_badge']);
 
         // Hide all admin notices on Chatzio pages (default: ON)
         $settings = get_option('chatzio_settings', []);
         if (!isset($settings['hide_all_notices']) || !empty($settings['hide_all_notices'])) {
             add_action('admin_head', [$this, 'hide_all_admin_notices'], 999);
         }
-    }
-
-    /**
-     * Without a valid license, only the License screen is reachable; all other
-     * Chatzio admin URLs redirect here.
-     */
-    public function redirect_chatzio_pages_without_license() {
-        // Free mode is the default; only enforce hard lock if explicitly enabled.
-        if (!defined('CHATZIO_REQUIRE_LICENSE') || !CHATZIO_REQUIRE_LICENSE) {
-            return;
-        }
-        if (!is_admin() || !is_user_logged_in() || !current_user_can('manage_options')) {
-            return;
-        }
-        if (!class_exists('Chatzio_License') || Chatzio_License::is_pro()) {
-            return;
-        }
-        if (!isset($_GET['page'])) {
-            return;
-        }
-        $page = sanitize_key(wp_unslash($_GET['page']));
-        if ($page === '' || strpos($page, 'chatzio') !== 0) {
-            return;
-        }
-        if ($page === 'chatzio-license') {
-            return;
-        }
-        wp_safe_redirect(admin_url('admin.php?page=chatzio-license'));
-        exit;
-    }
-
-    /**
-     * Hide Chatzio submenus except License until the site is licensed.
-     */
-    public function trim_chatzio_menu_without_license() {
-        // Free mode is the default; only enforce hard lock if explicitly enabled.
-        if (!defined('CHATZIO_REQUIRE_LICENSE') || !CHATZIO_REQUIRE_LICENSE) {
-            return;
-        }
-        if (!class_exists('Chatzio_License') || Chatzio_License::is_pro()) {
-            return;
-        }
-        $keep = 'chatzio-license';
-        $slugs = [
-            'chatzio-ai',
-            'chatzio-settings',
-            'chatzio-plans',
-            'chatzio-content',
-            'chatzio-resources',
-            'chatzio-conversations',
-            'chatzio-analytics',
-            'chatzio-leads',
-            'chatzio-logs',
-        ];
-        foreach ($slugs as $slug) {
-            remove_submenu_page('chatzio-ai', $slug);
-        }
-    }
-
-    /**
-     * Fixed top-right badge on Chatzio admin screens: Pro vs license required.
-     */
-    public function print_chatzio_license_badge_styles() {
-        if (!function_exists('get_current_screen')) {
-            return;
-        }
-        $screen = get_current_screen();
-        if (!$screen || strpos($screen->id, 'chatzio') === false) {
-            return;
-        }
-        ?>
-        <style>
-            #chatzio-license-floating-badge {
-                position: fixed;
-                top: 40px;
-                right: 16px;
-                z-index: 10001;
-                font-size: 12px;
-                font-weight: 600;
-                line-height: 1;
-                padding: 8px 14px;
-                border-radius: 999px;
-                box-shadow: 0 1px 3px rgba(0,0,0,.12);
-                pointer-events: none;
-            }
-            #chatzio-license-floating-badge.is-pro {
-                background: #d6f5db;
-                color: #1d7a36;
-                border: 1px solid #9ed9a8;
-            }
-            #chatzio-license-floating-badge.is-free {
-                background: #e8f1ff;
-                color: #1f4c93;
-                border: 1px solid #b8d2fb;
-            }
-            #chatzio-license-floating-badge.needs-license {
-                background: #fde2e2;
-                color: #a32424;
-                border: 1px solid #f5b5b5;
-            }
-            @media screen and (max-width: 782px) {
-                #chatzio-license-floating-badge { top: 46px; right: 8px; }
-            }
-        </style>
-        <?php
-    }
-
-    public function render_chatzio_license_badge() {
-        if (!class_exists('Chatzio_License') || !current_user_can('manage_options')) {
-            return;
-        }
-        if (!function_exists('get_current_screen')) {
-            return;
-        }
-        $screen = get_current_screen();
-        if (!$screen || strpos($screen->id, 'chatzio') === false) {
-            return;
-        }
-        $key = method_exists('Chatzio_License', 'key') ? Chatzio_License::key() : '';
-        if ($key === '') {
-            $cls = 'is-free';
-            $text = esc_html__('Chatzio · Free plan', 'chatzio-ai');
-        } else {
-            $is_pro = Chatzio_License::is_pro();
-            $cls = $is_pro ? 'is-pro' : 'needs-license';
-            $text = $is_pro
-                ? esc_html__('Chatzio · Pro active', 'chatzio-ai')
-                : esc_html__('Chatzio · License issue', 'chatzio-ai');
-        }
-        echo '<div id="chatzio-license-floating-badge" class="' . esc_attr($cls) . '" role="status">' . $text . '</div>';
-    }
-
-    /**
-     * Render a consistent paywall card for Pro-only admin screens.
-     */
-    private function render_pro_gate($feature_title, $feature_summary = '', $missing_items = []) {
-        $upgrade_url = apply_filters('chatzio_upgrade_url', 'https://chatzio.pro/pricing');
-        $summary = $feature_summary !== '' ? $feature_summary : __('This section is available on Pro plans.', 'chatzio-ai');
-        if (empty($missing_items)) {
-            $missing_items = [
-                __('Higher chat quotas and uninterrupted usage', 'chatzio-ai'),
-                __('Advanced analytics, sync, and resource tooling', 'chatzio-ai'),
-                __('Priority updates and premium capabilities', 'chatzio-ai'),
-            ];
-        }
-
-        echo '<div class="wrap chatzio-admin"><h1>' . esc_html($feature_title) . '</h1>';
-        echo '<div class="chatzio-pro-gate-wrap">';
-        echo '<div class="chatzio-pro-gate-preview" aria-hidden="true">';
-        echo '<div class="chatzio-pro-gate-preview-header">';
-        echo '<span class="chatzio-pro-gate-preview-pill">' . esc_html($feature_title) . '</span>';
-        echo '<span class="chatzio-pro-gate-preview-pill is-muted">' . esc_html__('Pro Insights', 'chatzio-ai') . '</span>';
-        echo '</div>';
-        echo '<div class="chatzio-pro-gate-preview-grid">';
-        echo '<div class="chatzio-pro-gate-preview-card"><strong>' . esc_html__('Live Knowledge Coverage', 'chatzio-ai') . '</strong><small>' . esc_html__('Synced pages, products, and files are continuously grounded for better answers.', 'chatzio-ai') . '</small></div>';
-        echo '<div class="chatzio-pro-gate-preview-card"><strong>' . esc_html__('Answer Confidence', 'chatzio-ai') . '</strong><small>' . esc_html__('Resources + sync can boost reply performance by 200-300% on business-specific queries.', 'chatzio-ai') . '</small></div>';
-        echo '<div class="chatzio-pro-gate-preview-card"><strong>' . esc_html__('Operational Speed', 'chatzio-ai') . '</strong><small>' . esc_html__('Keep your assistant updated as products, policies, and docs evolve.', 'chatzio-ai') . '</small></div>';
-        echo '</div>';
-        echo '</div>';
-        echo '<div class="chatzio-pro-gate-glass">';
-        echo '<div class="chatzio-pro-gate-badge">' . esc_html__('Pro Feature', 'chatzio-ai') . '</div>';
-        echo '<h2>' . esc_html__('Unlock this in Pro', 'chatzio-ai') . '</h2>';
-        echo '<p class="chatzio-pro-gate-summary">' . esc_html($summary) . '</p>';
-        echo '<div class="chatzio-pro-gate-missing-title">' . esc_html__('What you are missing right now', 'chatzio-ai') . '</div>';
-        echo '<ul class="chatzio-pro-gate-list">';
-        foreach ($missing_items as $item) {
-            echo '<li>' . esc_html($item) . '</li>';
-        }
-        echo '</ul>';
-        echo '<div class="chatzio-pro-gate-actions">';
-        echo '<a class="button button-primary button-hero" target="_blank" rel="noopener" href="' . esc_url($upgrade_url) . '">' . esc_html__('Upgrade to Pro', 'chatzio-ai') . '</a>';
-        echo '<a class="button" href="' . esc_url(admin_url('admin.php?page=chatzio-plans')) . '">' . esc_html__('Compare plans', 'chatzio-ai') . '</a>';
-        echo '</div>';
-        echo '</div>';
-        echo '</div>';
-        echo '</div>';
     }
 
     /**
@@ -242,15 +61,15 @@ class Chatzio_Admin {
         ?>
         <style>
         /* Hide all WordPress admin notices on Chatzio pages */
-        .wrap.chatzio-admin ~ .notice:not(.chatzio-license-admin-notice),
+        .wrap.chatzio-admin ~ .notice,
         .wrap.chatzio-admin ~ .update-nag,
-        .wrap.chatzio-admin ~ .is-dismissible:not(.chatzio-license-admin-notice),
-        .wrap.chatzio-admin .notice:not(.chatzio-license-admin-notice),
+        .wrap.chatzio-admin ~ .is-dismissible,
+        .wrap.chatzio-admin .notice,
         .wrap.chatzio-admin .update-nag,
-        .wrap.chatzio-admin .is-dismissible:not(.chatzio-license-admin-notice),
+        .wrap.chatzio-admin .is-dismissible,
         .wrap.chatzio-admin .astra-notice-wrapper,
-        .wrap.chatzio-admin [class*="notice-"]:not(.chatzio-license-admin-notice),
-        #wpbody-content > .notice:not(.chatzio-license-admin-notice),
+        .wrap.chatzio-admin [class*="notice-"],
+        #wpbody-content > .notice,
         #wpbody-content > .update-nag {
             display: none !important;
             visibility: hidden !important;
@@ -291,15 +110,6 @@ class Chatzio_Admin {
             [$this, 'render_settings_page']
         );
         
-        add_submenu_page(
-            'chatzio-ai',
-            'Plans',
-            'Plans',
-            'manage_options',
-            'chatzio-plans',
-            [$this, 'render_plans_page']
-        );
-
         add_submenu_page(
             'chatzio-ai',
             'Content Sync',
@@ -353,59 +163,6 @@ class Chatzio_Admin {
             'chatzio-logs',
             [$this, 'render_logs_page']
         );
-
-        add_submenu_page(
-            'chatzio-ai',
-            'License',
-            'License',
-            'manage_options',
-            'chatzio-license',
-            [$this, 'render_license_page']
-        );
-    }
-
-    /**
-     * Render license page.
-     */
-    public function render_license_page() {
-        if (!class_exists('Chatzio_License')) {
-            echo '<div class="wrap chatzio-admin"><h1>License</h1><p>License client unavailable.</p></div>';
-            return;
-        }
-        $state = Chatzio_License::get_state();
-        include CHATZIO_PLUGIN_DIR . 'admin/views/license-page.php';
-    }
-
-    /**
-     * Render Free vs Pro plans page.
-     */
-    public function render_plans_page() {
-        include CHATZIO_PLUGIN_DIR . 'admin/views/plans-page.php';
-    }
-
-    /**
-     * Download plan comparison as CSV for sharing with clients.
-     */
-    public function download_plans_csv() {
-        if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('Forbidden', 'chatzio-ai'));
-        }
-        check_admin_referer('chatzio_download_plans_csv');
-
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename=chatzio-free-vs-pro.csv');
-        $out = fopen('php://output', 'w');
-        fputcsv($out, ['Feature', 'Free', 'Pro']);
-        fputcsv($out, ['Daily message limit', '20/day', 'High or unlimited (by plan)']);
-        fputcsv($out, ['Response quality', 'Full quality model stack', 'Full quality model stack']);
-        fputcsv($out, ['Knowledge base sync', 'Limited/disabled', 'Enabled']);
-        fputcsv($out, ['Resource manager', 'Limited/disabled', 'Enabled']);
-        fputcsv($out, ['Advanced analytics', 'Basic', 'Full analytics + insights']);
-        fputcsv($out, ['Conversation history', 'Basic', 'Advanced']);
-        fputcsv($out, ['Branding/customization', 'Basic', 'Advanced']);
-        fputcsv($out, ['Priority updates/support', 'Standard', 'Priority']);
-        fclose($out);
-        exit;
     }
     
     /**
@@ -813,7 +570,6 @@ class Chatzio_Admin {
      * Render content sync page
      */
     public function render_content_page() {
-        $is_pro = class_exists('Chatzio_License') && Chatzio_License::is_pro();
         $stats = Chatzio_Content_Sync::get_sync_stats();
         include CHATZIO_PLUGIN_DIR . 'admin/views/content-page.php';
     }
@@ -822,7 +578,6 @@ class Chatzio_Admin {
      * Render resources page
      */
     public function render_resources_page() {
-        $is_pro = class_exists('Chatzio_License') && Chatzio_License::is_pro();
         $resources = Chatzio_Resource_Manager::get_resources();
         include CHATZIO_PLUGIN_DIR . 'admin/views/resources-page.php';
     }
@@ -853,7 +608,6 @@ class Chatzio_Admin {
      * Render analytics page
      */
     public function render_analytics_page() {
-        $is_pro = class_exists('Chatzio_License') && Chatzio_License::is_pro();
         include CHATZIO_PLUGIN_DIR . 'admin/views/analytics-page.php';
     }
 

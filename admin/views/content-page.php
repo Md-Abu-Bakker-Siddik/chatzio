@@ -1,29 +1,8 @@
 <?php
 if (!defined('ABSPATH')) exit;
-$is_pro = isset($is_pro) ? (bool) $is_pro : (class_exists('Chatzio_License') && Chatzio_License::is_pro());
-$upgrade_url = apply_filters('chatzio_upgrade_url', 'https://chatzio.pro/pricing');
 ?>
 
 <div class="wrap chatzio-admin">
-    <div class="chatzio-pro-page-lock <?php echo $is_pro ? 'is-pro' : 'is-free'; ?>">
-    <?php if (!$is_pro): ?>
-        <div class="chatzio-pro-page-lock-overlay">
-            <div class="chatzio-pro-page-lock-glass">
-                <div class="chatzio-pro-page-lock-badge"><?php esc_html_e('Pro Feature', 'chatzio-ai'); ?></div>
-                <h2><?php esc_html_e('Unlock this in Pro', 'chatzio-ai'); ?></h2>
-                <p><?php esc_html_e('Content Sync keeps your knowledge base fresh and can improve store-specific answer performance by 200-300%.', 'chatzio-ai'); ?></p>
-                <ul class="chatzio-pro-page-lock-list">
-                    <li><?php esc_html_e('One-click sync for posts, pages, and products', 'chatzio-ai'); ?></li>
-                    <li><?php esc_html_e('200-300% stronger grounding for policy and catalog questions', 'chatzio-ai'); ?></li>
-                    <li><?php esc_html_e('Faster response accuracy after catalog updates', 'chatzio-ai'); ?></li>
-                </ul>
-                <div class="chatzio-pro-page-lock-actions">
-                    <a class="button button-primary button-hero" target="_blank" rel="noopener" href="<?php echo esc_url($upgrade_url); ?>"><?php esc_html_e('Upgrade to Pro', 'chatzio-ai'); ?></a>
-                    <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=chatzio-plans')); ?>"><?php esc_html_e('Compare plans', 'chatzio-ai'); ?></a>
-                </div>
-            </div>
-        </div>
-    <?php endif; ?>
     <div class="chatzio-shell">
         <div class="chatzio-page-header">
             <div>
@@ -127,7 +106,6 @@ $upgrade_url = apply_filters('chatzio_upgrade_url', 'https://chatzio.pro/pricing
             <div id="diagnose-result" class="chatzio-diagnose-result"></div>
         </div>
     </div>
-</div>
 </div>
 </div>
 

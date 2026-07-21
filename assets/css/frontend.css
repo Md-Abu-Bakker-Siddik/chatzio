@@ -388,65 +388,6 @@
   display: inline-block;
 }
 
-/* Free-tier quota banner (shown at >=50% for non-Pro users) */
-.chatzio-quota-banner {
-  margin-top: 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 12px;
-  line-height: 1.35;
-  font-weight: 600;
-}
-.chatzio-quota-banner.info {
-  background: #eef4ff;
-  color: #274690;
-  border: 1px solid #c6d8ff;
-}
-.chatzio-quota-banner.warn {
-  background: #fff7e8;
-  color: #8a5a00;
-  border: 1px solid #ffd89a;
-}
-.chatzio-quota-banner.danger {
-  background: #fff1f1;
-  color: #972b2b;
-  border: 1px solid #f3c0c0;
-}
-
-.chatzio-upgrade-card {
-  border: 1px solid #d9e3ff;
-  background: linear-gradient(180deg, #f7f9ff 0%, #eef3ff 100%);
-  border-radius: 12px;
-  padding: 12px;
-}
-.chatzio-upgrade-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #1e3a8a;
-  margin-bottom: 6px;
-}
-.chatzio-upgrade-text {
-  font-size: 13px;
-  color: #334155;
-  line-height: 1.45;
-  margin-bottom: 10px;
-}
-.chatzio-upgrade-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-  text-decoration: none;
-  padding: 8px 12px;
-  border-radius: 8px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
-}
-.chatzio-upgrade-btn:hover {
-  filter: brightness(1.04);
-}
-
 .header-btn {
   background: transparent;
   border: none;

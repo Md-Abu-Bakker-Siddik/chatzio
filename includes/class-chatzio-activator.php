@@ -75,12 +75,7 @@ class Chatzio_Activator {
         if (!wp_next_scheduled('chatzio_data_retention')) {
             wp_schedule_event(time(), 'daily', 'chatzio_data_retention');
         }
-
-        // Schedule license validation heartbeat (PCL).
-        if (class_exists('Chatzio_License')) {
-            Chatzio_License::schedule_cron();
-        }
-
+        
         // Flush rewrite rules
         flush_rewrite_rules();
     }

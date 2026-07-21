@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh repo:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST https://api.github.com/user/repos -H \"Authorization: token dummy\" -H \"Content-Type: application/json\" -d '{\"\"name\"\":\"\"chatzio\"\",\"\"private\"\":true}')",
+      "Bash(git remote:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}

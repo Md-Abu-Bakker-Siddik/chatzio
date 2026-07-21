@@ -11,44 +11,6 @@ if (!defined('ABSPATH')) {
 class Chatzio_AJAX {
 
     /**
-     * Build quota payload for frontend warning banner.
-     */
-    private static function quota_payload($is_pro) {
-        if (!class_exists('Chatzio_Rate_Limiter')) {
-            return [
-                'isPro'          => (bool) $is_pro,
-                'dailyUsed'      => 0,
-                'dailyLimit'     => 20,
-                'dailyRemaining' => 20,
-                'dailyPercent'   => 0,
-            ];
-        }
-        $usage = Chatzio_Rate_Limiter::get_free_daily_usage();
-        return [
-            'isPro'          => (bool) $is_pro,
-            'dailyUsed'      => isset($usage['count']) ? (int) $usage['count'] : 0,
-            'dailyLimit'     => isset($usage['limit']) ? (int) $usage['limit'] : 20,
-            'dailyRemaining' => isset($usage['remaining']) ? (int) $usage['remaining'] : 20,
-            'dailyPercent'   => isset($usage['percent']) ? (int) $usage['percent'] : 0,
-        ];
-    }
-
-    /**
-     * Guard Pro-only AJAX endpoints.
-     */
-    private static function require_pro_ajax($feature = '') {
-        if (!class_exists('Chatzio_License') || !Chatzio_License::is_pro()) {
-            wp_send_json_error([
-                'message' => __('This feature is available on Pro plans only.', 'chatzio-ai'),
-                'code'    => 'pro_required',
-                'feature' => (string) $feature,
-            ], 403);
-            return false;
-        }
-        return true;
-    }
-
-    /**
      * Verify frontend nonce.
      * Accept both new and legacy action names to avoid breaking cached clients.
      */
@@ -65,8 +27,6 @@ class Chatzio_AJAX {
     // =========================================================================
 
     public static function handle_send_message() {
-        $is_pro = class_exists('Chatzio_License') && Chatzio_License::is_pro();
-
         // Verify nonce
         if (!self::verify_public_nonce()) {
             wp_send_json_error(['message' => 'Invalid security token. Please refresh the page.']);
@@ -95,20 +55,6 @@ class Chatzio_AJAX {
         if (is_wp_error($rate_check)) {
             wp_send_json_error(['message' => $rate_check->get_error_message()]);
             return;
-        }
-
-        // Free-tier quota: 20 messages/day per visitor IP.
-        if (!$is_pro) {
-            $quota_check = Chatzio_Rate_Limiter::check_free_daily_quota();
-            if (is_wp_error($quota_check)) {
-                $usage = Chatzio_Rate_Limiter::get_free_daily_usage();
-                wp_send_json_error([
-                    'message' => $quota_check->get_error_message(),
-                    'code'    => 'free_daily_quota_reached',
-                    'quota'   => $usage,
-                ], 429);
-                return;
-            }
         }
 
         // Parse conversation history from frontend
@@ -202,7 +148,6 @@ class Chatzio_AJAX {
                     'session_id'      => $session_id,
                     'conversation_id' => $conversation_id,
                     'model_used'      => $cached['model_used'],
-                    'quota'           => self::quota_payload($is_pro),
                 ]);
                 return;
             }
@@ -309,7 +254,6 @@ class Chatzio_AJAX {
                 'session_id'      => $session_id,
                 'conversation_id' => $conversation_id,
                 'model_used'      => $result['model_used'],
-                'quota'           => self::quota_payload($is_pro),
                 'performance'     => $perf_timings, // Include timing data for debugging
             ]);
 
@@ -1139,9 +1083,6 @@ class Chatzio_AJAX {
     // =========================================================================
 
     public static function handle_sync_content() {
-        if (!self::require_pro_ajax('content_sync')) {
-            return;
-        }
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Unauthorized']);
             return;
@@ -1160,9 +1101,6 @@ class Chatzio_AJAX {
     }
 
     public static function handle_reembed_chunks() {
-        if (!self::require_pro_ajax('content_sync')) {
-            return;
-        }
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Unauthorized']);
             return;
@@ -1195,9 +1133,6 @@ class Chatzio_AJAX {
     }
 
     public static function handle_upload_resource() {
-        if (!self::require_pro_ajax('resources')) {
-            return;
-        }
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Unauthorized']);
             return;
@@ -1223,9 +1158,6 @@ class Chatzio_AJAX {
     }
 
     public static function handle_delete_resource() {
-        if (!self::require_pro_ajax('resources')) {
-            return;
-        }
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Unauthorized']);
             return;
@@ -1390,9 +1322,6 @@ class Chatzio_AJAX {
     }
 
     public static function handle_paste_resource() {
-        if (!self::require_pro_ajax('resources')) {
-            return;
-        }
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Unauthorized']);
             return;
@@ -1462,9 +1391,6 @@ class Chatzio_AJAX {
     }
 
     public static function handle_update_resource() {
-        if (!self::require_pro_ajax('resources')) {
-            return;
-        }
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Unauthorized']);
             return;
@@ -1508,9 +1434,6 @@ class Chatzio_AJAX {
     }
 
     public static function handle_diagnose_knowledge() {
-        if (!self::require_pro_ajax('content_sync')) {
-            return;
-        }
         if (!current_user_can('manage_options')) {
             wp_send_json_error(['message' => 'Unauthorized']);
             return;

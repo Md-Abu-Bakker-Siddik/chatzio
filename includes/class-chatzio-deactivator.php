@@ -16,7 +16,6 @@ class Chatzio_Deactivator {
             'chatzio_failed_topics_digest',
             'chatzio_weekly_summary',
             'chatzio_data_retention',
-            'chatzio_license_validate',
         ];
 
         foreach ($cron_hooks as $hook) {

@@ -3,7 +3,7 @@
  * Plugin Name: Chatzio
  * Plugin URI: https://instaquirk.com
  * Description: Intelligent AI chatbot powered by OpenRouter with automatic content sync, resource management, and beautiful UI
- * Version: 5.5.7
+ * Version: 5.3.1
  * Author: Instaquirk
  * Author URI: https://instaquirk.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('CHATZIO_VERSION', '5.5.7');
+define('CHATZIO_VERSION', '5.4.1');
 define('CHATZIO_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('CHATZIO_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('CHATZIO_PLUGIN_FILE', __FILE__);
@@ -56,8 +56,6 @@ require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-restock.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-privacy.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-api-key-crypto.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/tab-icon-library.php';
-require_once CHATZIO_PLUGIN_DIR . 'includes/license-config.php';
-require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-license.php';
 
 // Decrypt API key when settings are read (so code always sees plain key; DB stores encrypted)
 add_filter('option_chatzio_settings', ['Chatzio_API_Key_Crypto', 'decrypt_api_key_in_settings'], 10, 1);
@@ -158,13 +156,6 @@ class Chatzio_AI {
         Chatzio_WooCommerce::init();
         Chatzio_Privacy::register();
 
-        // License client (also registers admin-post handlers and the heartbeat).
-        if (class_exists('Chatzio_License')) {
-            Chatzio_License::init();
-            // Schedule cron once for installs upgrading from <5.5.0 (activator already covers fresh installs).
-            Chatzio_License::schedule_cron();
-        }
-
         if (is_admin()) {
             new Chatzio_Admin();
         }
@@ -178,7 +169,7 @@ class Chatzio_AI {
         if (!$enabled) {
             return;
         }
-
+        
         // Optional: reduce gap below browser when admin bar is visible (logged-in view)
         if (!empty($settings['reduce_top_gap'])) {
             wp_register_style('chatzio-reduce-top-gap', false);
@@ -248,25 +239,12 @@ class Chatzio_AI {
             $quick_replies = array_values(array_filter(array_map('trim', explode("\n", $quick_replies_raw))));
         }
         
-        $is_pro_license = class_exists('Chatzio_License') && Chatzio_License::is_pro();
-        $free_quota = class_exists('Chatzio_Rate_Limiter')
-            ? Chatzio_Rate_Limiter::get_free_daily_usage()
-            : ['count' => 0, 'limit' => 20, 'remaining' => 20, 'percent' => 0];
-
         // Pass all config to JavaScript
         $frontend_data = [
             'ajaxUrl'   => admin_url('admin-ajax.php'),
             'streamUrl' => '', // Disabled: streaming showed raw markdown first, then jump to formatted—use AJAX for consistent formatting & product cards
             'nonce'     => wp_create_nonce('chatzio_nonce'),
             'cssUrl'    => $css_url,
-            'upgradeUrl'=> apply_filters('chatzio_upgrade_url', 'https://chatzio.pro/pricing'),
-            'quota'     => [
-                'isPro'         => (bool) $is_pro_license,
-                'dailyUsed'     => isset($free_quota['count']) ? (int) $free_quota['count'] : 0,
-                'dailyLimit'    => isset($free_quota['limit']) ? (int) $free_quota['limit'] : 20,
-                'dailyRemaining'=> isset($free_quota['remaining']) ? (int) $free_quota['remaining'] : 20,
-                'dailyPercent'  => isset($free_quota['percent']) ? (int) $free_quota['percent'] : 0,
-            ],
             'settings'  => [
                 'primaryColor'      => isset($settings['primary_color']) ? $settings['primary_color'] : '#4F46E5',
                 'secondaryColor'    => isset($settings['secondary_color']) ? $settings['secondary_color'] : '#6366F1',
@@ -416,7 +394,7 @@ class Chatzio_AI {
         if (!$enabled) {
             return;
         }
-
+        
         include CHATZIO_PLUGIN_DIR . 'templates/chatbot-widget.php';
         self::$widget_rendered = true;
     }
