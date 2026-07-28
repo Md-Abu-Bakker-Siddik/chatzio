@@ -52,6 +52,7 @@ require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-product-cards.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-failed-topics.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-topic-resolver.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-woocommerce.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-order-tracking.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-restock.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-privacy.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-api-key-crypto.php';

@@ -57,6 +57,35 @@ class Chatzio_AJAX {
             return;
         }
 
+        // Order status / tracking lookup — handled 100% server-side.
+        // Intercepts BEFORE cache and the LLM: order data never reaches OpenRouter.
+        if (class_exists('Chatzio_Order_Tracking')) {
+            $order_reply = Chatzio_Order_Tracking::maybe_handle($message, $session_id);
+            if (is_array($order_reply)) {
+                $conversation_id = self::save_conversation(
+                    $session_id,
+                    $message,
+                    $order_reply['html'],
+                    $order_reply['raw'],
+                    [],
+                    null,
+                    [],
+                    'order_tracking'
+                );
+                if (class_exists('Chatzio_Notifications')) {
+                    Chatzio_Notifications::notify_new_conversation($session_id, $message, 'order_tracking');
+                }
+                wp_send_json_success([
+                    'response'        => $order_reply['html'],
+                    'raw_response'    => $order_reply['raw'],
+                    'session_id'      => $session_id,
+                    'conversation_id' => $conversation_id,
+                    'model_used'      => 'order-lookup',
+                ]);
+                return;
+            }
+        }
+
         // Parse conversation history from frontend
         $history = [];
         if (isset($_POST['conversation_history'])) {
