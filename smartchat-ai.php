@@ -3,7 +3,7 @@
  * Plugin Name: Chatzio
  * Plugin URI: https://instaquirk.com
  * Description: Intelligent AI chatbot powered by OpenRouter with automatic content sync, resource management, and beautiful UI
- * Version: 5.3.1
+ * Version: 5.4.1
  * Author: Instaquirk
  * Author URI: https://instaquirk.com
  * License: GPL v2 or later
@@ -52,6 +52,8 @@ require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-product-cards.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-failed-topics.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-topic-resolver.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-woocommerce.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-input-validator.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-authorization.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-order-tracking.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-restock.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-privacy.php';

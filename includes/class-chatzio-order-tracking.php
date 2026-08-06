@@ -105,6 +105,9 @@ class Chatzio_Order_Tracking {
 
     private static function detect_intent($message) {
         $patterns = [
+            // A short starter such as "Order" should begin the secure lookup
+            // flow instead of being sent to the LLM as a vague product query.
+            '/^\s*(?:my\s+)?order\s*[?!.]*\s*$/i',
             '/\btrack(?:ing)?\b.{0,40}\b(order|package|parcel|shipment|number|info)\b/i',
             '/\b(order|package|parcel|shipment)\b.{0,40}\btrack(?:ing)?\b/i',
             '/\bwhere(?:\'s| is)?\s+(my|the)\s+(order|package|parcel|shipment|delivery)\b/i',
