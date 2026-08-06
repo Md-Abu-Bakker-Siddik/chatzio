@@ -3,7 +3,7 @@
  * Plugin Name: Chatzio
  * Plugin URI: https://instaquirk.com
  * Description: Intelligent AI chatbot powered by OpenRouter with automatic content sync, resource management, and beautiful UI
- * Version: 5.4.1
+ * Version: 5.4.2
  * Author: Instaquirk
  * Author URI: https://instaquirk.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('CHATZIO_VERSION', '5.4.1');
+define('CHATZIO_VERSION', '5.4.2');
 define('CHATZIO_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('CHATZIO_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('CHATZIO_PLUGIN_FILE', __FILE__);
@@ -53,6 +53,8 @@ require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-failed-topics.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-topic-resolver.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-woocommerce.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-input-validator.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-audit-logger.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-rate-limiter.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-authorization.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-result.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-ast-adapter.php';
@@ -60,6 +62,7 @@ require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-resp
 require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-tool.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-verification-tool.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-conversation-state.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-ai-tool-orchestrator.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-order-tracking.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-restock.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-privacy.php';

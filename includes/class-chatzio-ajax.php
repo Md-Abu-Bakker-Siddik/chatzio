@@ -186,10 +186,23 @@ class Chatzio_AJAX {
             $context = self::build_context($message);
             $perf_timings['context_build'] = round((microtime(true) - $context_start) * 1000, 2);
 
-            // Send to OpenRouter with conversation history
+            // Send to OpenRouter with conversation history and approved native
+            // tools. This point is reached only after nonce validation, input
+            // validation, rate limiting, and the deterministic order gate.
             $api_start = microtime(true);
             $openrouter = new Chatzio_OpenRouter();
-            $result = $openrouter->send_message($message, $context, $clean_history);
+            if (class_exists('Chatzio_AI_Tool_Orchestrator')) {
+                $orchestrator = new Chatzio_AI_Tool_Orchestrator();
+                $result = $orchestrator->process_message(
+                    $openrouter,
+                    $message,
+                    $context,
+                    $clean_history,
+                    $session_id
+                );
+            } else {
+                $result = $openrouter->send_message($message, $context, $clean_history);
+            }
             $perf_timings['api_call'] = round((microtime(true) - $api_start) * 1000, 2);
 
             if (!$result['success']) {
@@ -201,6 +214,36 @@ class Chatzio_AJAX {
                     $error_response['debug'] = $result['debug'];
                 }
                 wp_send_json_error($error_response);
+                return;
+            }
+
+            // Tool results are already authorized, allowlisted, and rendered
+            // server-side. Do not pass them through topic analysis, product
+            // cards, or the normal response cache.
+            if (!empty($result['order_tool_used'])) {
+                $conversation_id = self::save_conversation(
+                    $session_id,
+                    $message,
+                    $result['response'],
+                    isset($result['raw_response']) ? $result['raw_response'] : '',
+                    [],
+                    null,
+                    [],
+                    'order_tracking'
+                );
+                if (class_exists('Chatzio_Notifications')) {
+                    Chatzio_Notifications::notify_new_conversation($session_id, $message, 'order_tracking');
+                }
+
+                wp_send_json_success([
+                    'response'           => $result['response'],
+                    'raw_response'       => isset($result['raw_response']) ? $result['raw_response'] : '',
+                    'session_id'         => $session_id,
+                    'conversation_id'    => $conversation_id,
+                    'model_used'         => isset($result['model_used']) ? $result['model_used'] : 'order-tool',
+                    'message_type'       => !empty($result['order_tool_verified']) ? 'order_status' : 'order_support',
+                    'conversation_state' => !empty($result['order_tool_verified']) ? 'verified_order' : 'verification_required',
+                ]);
                 return;
             }
 

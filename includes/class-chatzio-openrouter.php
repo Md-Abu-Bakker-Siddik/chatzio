@@ -102,9 +102,10 @@ class Chatzio_OpenRouter {
      * @param string $user_message  The current user message
      * @param array  $context       Knowledge base context
      * @param array  $history       Previous conversation [{role, content}, ...]
+     * @param array  $tools         Optional native tool definitions.
      * @return array
      */
-    public function send_message($user_message, $context = [], $history = []) {
+    public function send_message($user_message, $context = [], $history = [], $tools = []) {
         if (empty($this->api_key)) {
             Chatzio_Logger::log_error('OpenRouter API key not configured');
             return [
@@ -149,6 +150,11 @@ class Chatzio_OpenRouter {
                 'temperature' => $this->temperature,
                 'max_tokens'  => $this->max_tokens,
             ];
+
+            if (!empty($tools) && is_array($tools)) {
+                $body['tools'] = array_values($tools);
+                $body['tool_choice'] = 'auto';
+            }
 
             // Make API request
             $response = wp_remote_post($this->api_url, [
@@ -207,7 +213,7 @@ class Chatzio_OpenRouter {
             // Parse response
             $data = json_decode($response_body, true);
 
-            if (!isset($data['choices'][0]['message']['content'])) {
+            if (!isset($data['choices'][0]['message']) || !is_array($data['choices'][0]['message'])) {
                 Chatzio_Logger::log_error('Invalid API response format', [
                     'response' => substr($response_body, 0, 500)
                 ]);
@@ -217,7 +223,35 @@ class Chatzio_OpenRouter {
                 ];
             }
 
-            $ai_response = $data['choices'][0]['message']['content'];
+            $assistant_message = $data['choices'][0]['message'];
+            $tool_calls = isset($assistant_message['tool_calls']) && is_array($assistant_message['tool_calls'])
+                ? $assistant_message['tool_calls']
+                : [];
+
+            // Native tool calls often contain null/empty content. Return the
+            // structured call to the orchestrator without trying to format it.
+            if (!empty($tool_calls)) {
+                return [
+                    'success'           => true,
+                    'response'          => '',
+                    'raw_response'      => '',
+                    'assistant_message' => $assistant_message,
+                    'tool_calls'        => $tool_calls,
+                    'model_used'        => $this->model,
+                    'tokens_used'       => isset($data['usage']) ? $data['usage'] : null,
+                ];
+            }
+
+            $ai_response = isset($assistant_message['content']) && is_string($assistant_message['content'])
+                ? $assistant_message['content']
+                : '';
+            if ('' === trim($ai_response)) {
+                Chatzio_Logger::log_error('AI response contained neither content nor tool calls');
+                return [
+                    'success' => false,
+                    'error'   => 'Invalid response from AI service',
+                ];
+            }
 
             // Format for display (HTML) and keep raw for history
             $formatted_response = $this->format_response($ai_response);

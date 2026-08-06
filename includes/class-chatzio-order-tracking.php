@@ -104,6 +104,7 @@ class Chatzio_Order_Tracking {
             && class_exists('WC_Order')
             && class_exists('Chatzio_Order_Tool')
             && class_exists('Chatzio_Order_Verification_Tool')
+            && class_exists('Chatzio_Order_Rate_Limiter')
             && class_exists('Chatzio_Order_Conversation_State')
             && class_exists('Chatzio_Order_Response_Renderer');
     }
@@ -117,12 +118,6 @@ class Chatzio_Order_Tracking {
      * @return array
      */
     private static function verify_and_render($pending, $session_id, $logged_in) {
-        if (!self::consume_lookup_slot()) {
-            self::clear_pending_state($session_id);
-            self::set_lockout();
-            return self::locked_out_response();
-        }
-
         if ($logged_in) {
             $result = Chatzio_Order_Tool::execute(
                 array('order_number' => $pending['order_id'])
@@ -154,6 +149,9 @@ class Chatzio_Order_Tracking {
 
         $error_code = isset($result['error_code']) ? (string) $result['error_code'] : 'temporarily_unavailable';
         if ('verification_failed' !== $error_code) {
+            if ('locked_out' === $error_code) {
+                self::clear_pending_state($session_id);
+            }
             $public_message = isset($result['public_message'])
                 ? (string) $result['public_message']
                 : 'I\'m temporarily unable to check your order. Please try again shortly or contact support.';
@@ -449,14 +447,11 @@ class Chatzio_Order_Tracking {
      * @return bool
      */
     private static function consume_lookup_slot() {
-        $key = 'chatzio_ot_cnt_' . hash('sha256', self::client_ip());
-        $count = (int) get_transient($key);
-        if ($count >= self::LOOKUP_LIMIT) {
-            return false;
+        if (!class_exists('Chatzio_Order_Rate_Limiter')) {
+            return true;
         }
 
-        set_transient($key, $count + 1, self::LOOKUP_WINDOW);
-        return true;
+        return !is_wp_error(Chatzio_Order_Rate_Limiter::check_and_consume());
     }
 
     /**
@@ -465,7 +460,8 @@ class Chatzio_Order_Tracking {
      * @return bool
      */
     private static function is_locked_out() {
-        return (bool) get_transient('chatzio_ot_lock_' . hash('sha256', self::client_ip()));
+        return class_exists('Chatzio_Order_Rate_Limiter')
+            && Chatzio_Order_Rate_Limiter::is_locked_out();
     }
 
     /**
@@ -474,12 +470,9 @@ class Chatzio_Order_Tracking {
      * @return void
      */
     private static function set_lockout() {
-        set_transient(
-            'chatzio_ot_lock_' . hash('sha256', self::client_ip()),
-            1,
-            self::LOCKOUT_TTL
-        );
-        self::log_warning('Order lookup lockout set');
+        if (class_exists('Chatzio_Order_Rate_Limiter')) {
+            Chatzio_Order_Rate_Limiter::force_lock('verification_failures');
+        }
     }
 
     /**
@@ -500,6 +493,10 @@ class Chatzio_Order_Tracking {
      * @return string
      */
     private static function mask_email($email) {
+        if (class_exists('Chatzio_Order_Audit_Logger')) {
+            return Chatzio_Order_Audit_Logger::mask_email($email);
+        }
+
         $at = strpos($email, '@');
         if (false === $at || $at < 1) {
             return '***';
@@ -527,6 +524,11 @@ class Chatzio_Order_Tracking {
      * @return void
      */
     private static function log_info($message, $context = array()) {
+        if (class_exists('Chatzio_Order_Audit_Logger')) {
+            Chatzio_Order_Audit_Logger::log_info($message, self::audit_context($context));
+            return;
+        }
+
         if (class_exists('Chatzio_Logger')) {
             Chatzio_Logger::log_info($message, self::audit_context($context));
         }
@@ -540,6 +542,11 @@ class Chatzio_Order_Tracking {
      * @return void
      */
     private static function log_warning($message, $context = array()) {
+        if (class_exists('Chatzio_Order_Audit_Logger')) {
+            Chatzio_Order_Audit_Logger::log_warning($message, self::audit_context($context));
+            return;
+        }
+
         if (class_exists('Chatzio_Logger')) {
             Chatzio_Logger::log_warning($message, self::audit_context($context));
         }

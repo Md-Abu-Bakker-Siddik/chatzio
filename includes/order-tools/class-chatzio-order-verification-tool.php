@@ -57,10 +57,27 @@ class Chatzio_Order_Verification_Tool {
             return self::failure('temporarily_unavailable');
         }
 
+        if (class_exists('Chatzio_Order_Rate_Limiter')) {
+            $rate_limit = Chatzio_Order_Rate_Limiter::check_and_consume();
+            if (is_wp_error($rate_limit)) {
+                return self::failure('locked_out');
+            }
+        }
+
         try {
             $order = Chatzio_Order_Authorization::verify_guest($order_id, $email);
             if (false === $order) {
+                $locked_out = class_exists('Chatzio_Order_Rate_Limiter')
+                    ? Chatzio_Order_Rate_Limiter::record_failure($order_id, $email)
+                    : false;
+                if ($locked_out) {
+                    return self::failure('locked_out');
+                }
                 return self::failure('verification_failed');
+            }
+
+            if (class_exists('Chatzio_Order_Rate_Limiter')) {
+                Chatzio_Order_Rate_Limiter::record_success($order_id);
             }
 
             $order_result = Chatzio_Order_Result::from_order($order);
@@ -106,6 +123,9 @@ class Chatzio_Order_Verification_Tool {
             'missing_billing_email'   => 'Please provide the billing email used for the order.',
             'invalid_email'           => 'That email address does not appear to be valid. Please enter the billing email used for the order.',
             'verification_failed'     => 'We couldn\'t verify an order with those details. Please check the order number and billing email and try again.',
+            'locked_out'              => class_exists('Chatzio_Order_Rate_Limiter')
+                ? Chatzio_Order_Rate_Limiter::public_message()
+                : 'Too many unsuccessful attempts were made. Please wait 15 minutes before trying again or contact support for assistance.',
             'temporarily_unavailable' => 'I\'m temporarily unable to check your order. Please try again shortly or contact support.',
         );
 
