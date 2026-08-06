@@ -58,6 +58,7 @@ require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-resu
 require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-ast-adapter.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-response-renderer.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-tool.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-verification-tool.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-conversation-state.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-order-tracking.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-restock.php';
