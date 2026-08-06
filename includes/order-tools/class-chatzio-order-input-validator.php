@@ -10,15 +10,15 @@ if (!defined('ABSPATH')) {
 class Chatzio_Order_Input_Validator {
 
     /**
-     * Validate and normalize a WooCommerce order number.
+     * Sanitize an order number into its canonical numeric string.
      *
-     * Only positive, base-10 integer values are accepted. Decimal values,
-     * signs, scientific notation, and arbitrary order-key text are rejected.
+     * A single conventional leading hash is accepted at the input boundary.
+     * After it is removed, the value must contain decimal digits only.
      *
      * @param mixed $order_number Proposed order number.
-     * @return int|false Normalized order number, or false when invalid.
+     * @return string|false Canonical numeric string, or false when invalid.
      */
-    public static function validate_order_number($order_number) {
+    public static function sanitize_order_number($order_number) {
         if (is_int($order_number)) {
             $candidate = (string) $order_number;
         } elseif (is_string($order_number)) {
@@ -27,11 +27,14 @@ class Chatzio_Order_Input_Validator {
             return false;
         }
 
+        if (isset($candidate[0]) && '#' === $candidate[0]) {
+            $candidate = trim(substr($candidate, 1));
+        }
+
         if (!preg_match('/\A[0-9]+\z/D', $candidate)) {
             return false;
         }
 
-        // Normalize leading zeroes before checking the platform integer limit.
         $candidate = ltrim($candidate, '0');
         if ('' === $candidate) {
             return false;
@@ -42,6 +45,24 @@ class Chatzio_Order_Input_Validator {
             strlen($candidate) > strlen($maximum)
             || (strlen($candidate) === strlen($maximum) && strcmp($candidate, $maximum) > 0)
         ) {
+            return false;
+        }
+
+        return $candidate;
+    }
+
+    /**
+     * Validate and normalize a WooCommerce order number.
+     *
+     * Only positive, base-10 integer values are accepted. Decimal values,
+     * signs, scientific notation, and arbitrary order-key text are rejected.
+     *
+     * @param mixed $order_number Proposed order number.
+     * @return int|false Normalized order number, or false when invalid.
+     */
+    public static function validate_order_number($order_number) {
+        $candidate = self::sanitize_order_number($order_number);
+        if (false === $candidate) {
             return false;
         }
 
@@ -69,4 +90,10 @@ class Chatzio_Order_Input_Validator {
 
         return strtolower($email);
     }
+}
+
+// Public Sprint 1 name. Keep the original class available for compatibility
+// with code written before the shorter utility name was finalized.
+if (!class_exists('Chatzio_Input_Validator', false)) {
+    class_alias('Chatzio_Order_Input_Validator', 'Chatzio_Input_Validator');
 }
