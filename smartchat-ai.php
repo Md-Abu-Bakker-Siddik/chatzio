@@ -3,7 +3,7 @@
  * Plugin Name: Chatzio
  * Plugin URI: https://instaquirk.com
  * Description: Intelligent AI chatbot powered by OpenRouter with automatic content sync, resource management, and beautiful UI
- * Version: 5.3.1
+ * Version: 5.5.0
  * Author: Instaquirk
  * Author URI: https://instaquirk.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('CHATZIO_VERSION', '5.4.1');
+define('CHATZIO_VERSION', '5.5.0');
 define('CHATZIO_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('CHATZIO_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('CHATZIO_PLUGIN_FILE', __FILE__);
@@ -44,6 +44,14 @@ require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-resource-manager.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-logger.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-rate-limiter.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-request-cache.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-input-validator.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-conversation-state.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-authorization.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-ast-adapter.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-result.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-response-renderer.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-order-tool.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/order-tools/class-chatzio-ai-tool-orchestrator.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-ajax.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-stream.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-lead-manager.php';
@@ -52,7 +60,7 @@ require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-product-cards.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-failed-topics.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-topic-resolver.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-woocommerce.php';
-require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-order-tracking.php';
+require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-order-tracking.php'; // Legacy fallback; no longer used by the primary AJAX flow.
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-restock.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-privacy.php';
 require_once CHATZIO_PLUGIN_DIR . 'includes/class-chatzio-api-key-crypto.php';

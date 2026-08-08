@@ -57,35 +57,6 @@ class Chatzio_AJAX {
             return;
         }
 
-        // Order status / tracking lookup — handled 100% server-side.
-        // Intercepts BEFORE cache and the LLM: order data never reaches OpenRouter.
-        if (class_exists('Chatzio_Order_Tracking')) {
-            $order_reply = Chatzio_Order_Tracking::maybe_handle($message, $session_id);
-            if (is_array($order_reply)) {
-                $conversation_id = self::save_conversation(
-                    $session_id,
-                    $message,
-                    $order_reply['html'],
-                    $order_reply['raw'],
-                    [],
-                    null,
-                    [],
-                    'order_tracking'
-                );
-                if (class_exists('Chatzio_Notifications')) {
-                    Chatzio_Notifications::notify_new_conversation($session_id, $message, 'order_tracking');
-                }
-                wp_send_json_success([
-                    'response'        => $order_reply['html'],
-                    'raw_response'    => $order_reply['raw'],
-                    'session_id'      => $session_id,
-                    'conversation_id' => $conversation_id,
-                    'model_used'      => 'order-lookup',
-                ]);
-                return;
-            }
-        }
-
         // Parse conversation history from frontend
         $history = [];
         if (isset($_POST['conversation_history'])) {
@@ -106,12 +77,47 @@ class Chatzio_AJAX {
             if (isset($entry['role']) && isset($entry['content'])) {
                 $role = ($entry['role'] === 'assistant') ? 'assistant' : 'user';
                 $content = self::sanitize_message($entry['content']);
+                if ($role === 'user' && class_exists('Chatzio_Order_Input_Validator')) {
+                    $content = Chatzio_Order_Input_Validator::redact($content);
+                }
                 if (!empty($content)) {
                     $clean_history[] = [
                         'role'    => $role,
                         'content' => mb_substr($content, 0, 2000),
                     ];
                 }
+            }
+        }
+
+        // AI-first order routing. Credentials are extracted and retained locally;
+        // the router receives redacted flags only and can never authorize a lookup.
+        if (class_exists('Chatzio_AI_Tool_Orchestrator')) {
+            $orchestrator = new Chatzio_AI_Tool_Orchestrator();
+            $order_reply = $orchestrator->maybe_handle($message, $session_id, $clean_history);
+            if (is_array($order_reply)) {
+                $conversation_id = self::save_conversation(
+                    $session_id,
+                    $message,
+                    $order_reply['html'],
+                    $order_reply['raw'],
+                    [],
+                    null,
+                    [],
+                    'order_tracking'
+                );
+                if (class_exists('Chatzio_Notifications')) {
+                    Chatzio_Notifications::notify_new_conversation($session_id, Chatzio_Order_Input_Validator::redact($message), 'order_tracking');
+                }
+                wp_send_json_success([
+                    'response'           => $order_reply['html'],
+                    'raw_response'       => $order_reply['raw'],
+                    'session_id'         => $session_id,
+                    'conversation_id'    => $conversation_id,
+                    'model_used'         => 'order-tool-router',
+                    'message_type'       => $order_reply['message_type'] ?? 'order_support',
+                    'conversation_state' => $order_reply['conversation_state'] ?? 'order_support',
+                ]);
+                return;
             }
         }
 
@@ -1008,6 +1014,9 @@ class Chatzio_AJAX {
         $table = $wpdb->prefix . 'chatzio_conversations';
 
         $user_id = is_user_logged_in() ? get_current_user_id() : 0;
+        if (class_exists('Chatzio_Order_Input_Validator')) {
+            $user_message = Chatzio_Order_Input_Validator::redact($user_message);
+        }
         
         // Build messages JSON array
         $messages = [
@@ -1077,6 +1086,9 @@ class Chatzio_AJAX {
         }
 
         $user_id = is_user_logged_in() ? get_current_user_id() : 0;
+        if (class_exists('Chatzio_Order_Input_Validator')) {
+            $user_message = Chatzio_Order_Input_Validator::redact($user_message);
+        }
         
         // Build messages JSON array
         $messages = [

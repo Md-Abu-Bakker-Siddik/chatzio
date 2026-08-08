@@ -2778,6 +2778,68 @@
   outline-offset: 1px;
 }
 
+/* === Verified order result === */
+.chatzio-order-result {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--chatzio-primary) 24%, var(--chatzio-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--chatzio-primary) 5%, #fff);
+}
+.chatzio-order-result h3 {
+  margin: 0;
+  color: var(--chatzio-text);
+  font-size: 16px;
+  font-weight: 700;
+}
+.chatzio-order-result h4 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.chatzio-order-result p {
+  margin: 0;
+}
+.chatzio-order-result__date {
+  color: var(--chatzio-text-muted);
+  font-size: 12px;
+}
+.chatzio-order-result__shipments {
+  display: grid;
+  gap: 9px;
+}
+.chatzio-order-result__shipment {
+  padding: 11px;
+  border: 1px solid var(--chatzio-border);
+  border-radius: 10px;
+  background: #fff;
+}
+.chatzio-order-result__tracking {
+  overflow-wrap: anywhere;
+}
+.bot-message .message-content .chatzio-order-result__link {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  background: var(--chatzio-primary);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+.bot-message .message-content .chatzio-order-result__link:hover {
+  color: #fff;
+  filter: brightness(0.94);
+}
+.chatzio-order-result__link:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--chatzio-primary) 35%, transparent);
+  outline-offset: 2px;
+}
+
 /* ====================================================================
    MOBILE RESPONSIVE (tabbed)
    ==================================================================== */

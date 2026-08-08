@@ -1293,6 +1293,16 @@ if (!defined('ABSPATH')) exit;
                 
                 <table class="form-table">
                     <tr>
+                        <th scope="row">AI Order Status Tools</th>
+                        <td>
+                            <label class="chatzio-switch">
+                                <input type="checkbox" name="chatzio_settings[enable_ai_order_tools]" value="1" <?php checked(isset($settings['enable_ai_order_tools']) ? $settings['enable_ai_order_tools'] : true); ?>>
+                                <span class="slider"></span>
+                            </label>
+                            <p class="description">Let AI route order conversations while WooCommerce securely verifies ownership and renders order status and tracking. Billing emails remain server-side.</p>
+                        </td>
+                    </tr>
+                    <tr>
                         <th scope="row">Auto-Sync Content</th>
                         <td>
                             <label class="chatzio-switch">

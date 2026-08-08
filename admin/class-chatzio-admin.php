@@ -209,6 +209,7 @@ class Chatzio_Admin {
         $sanitized['debug_mode'] = isset($input['debug_mode']) ? true : false;
         $sanitized['hide_all_notices'] = isset($input['hide_all_notices']) ? true : false;
         $sanitized['reduce_top_gap'] = isset($input['reduce_top_gap']) ? true : false;
+        $sanitized['enable_ai_order_tools'] = isset($input['enable_ai_order_tools']) ? true : false;
         
         // Bot behavior settings
         $sanitized['synced_content_prompt'] = isset($input['synced_content_prompt']) ? sanitize_textarea_field($input['synced_content_prompt']) : '';
