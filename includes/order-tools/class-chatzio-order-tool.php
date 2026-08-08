@@ -1,62 +1,158 @@
 <?php
-if (!defined('ABSPATH')) exit;
+/**
+ * Main server-side service for the get_order_status tool.
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
 
 class Chatzio_Order_Tool {
-    const MAX_FAILURES = 3;
-    const LOCKOUT_TTL = 900;
-    const LOOKUP_LIMIT = 5;
-    const LOOKUP_WINDOW = 600;
 
-    public static function execute($session_id, array $state) {
-        if (!class_exists('WooCommerce') || !function_exists('wc_get_order')) return Chatzio_Order_Result::failure('temporarily_unavailable', 'Order lookup is temporarily unavailable. Please try again shortly.');
-        if (self::locked()) return Chatzio_Order_Result::failure('rate_limited', 'Too many unsuccessful attempts were made. Please wait 15 minutes before trying again or contact support for assistance.');
+    /**
+     * Validate, authorize, map, and enrich one order lookup.
+     *
+     * Tool arguments are untrusted. Unknown properties are rejected, and the
+     * response contains only JSON-serializable allowlisted scalar data.
+     *
+     * @param mixed $arguments Proposed tool arguments.
+     * @return array Strict success or failure payload.
+     */
+    public static function execute($arguments) {
+        if (!is_array($arguments)) {
+            return self::failure('temporarily_unavailable');
+        }
 
-        $number = Chatzio_Order_Input_Validator::validate_order_number($state['order_number'] ?? '');
-        if (!$number) return Chatzio_Order_Result::failure('missing_order_number', 'Please provide the numeric order number shown in your confirmation email.');
-        if (!is_user_logged_in() && !Chatzio_Order_Input_Validator::validate_email($state['billing_email'] ?? '')) return Chatzio_Order_Result::failure('missing_billing_email', 'Please provide the billing email used for the order.');
-        if (!self::consume()) return Chatzio_Order_Result::failure('rate_limited', 'Too many unsuccessful attempts were made. Please wait 15 minutes before trying again or contact support for assistance.');
+        $logged_in = is_user_logged_in() && get_current_user_id() > 0;
+        $allowed_keys = $logged_in
+            ? array('order_number')
+            : array('order_number', 'billing_email');
+
+        foreach (array_keys($arguments) as $key) {
+            if (!is_string($key) || !in_array($key, $allowed_keys, true)) {
+                return self::failure('temporarily_unavailable');
+            }
+        }
+
+        if (
+            !array_key_exists('order_number', $arguments)
+            || (!is_string($arguments['order_number']) && !is_int($arguments['order_number']))
+            || '' === trim((string) $arguments['order_number'])
+        ) {
+            return self::failure('missing_order_number');
+        }
+
+        $order_number = Chatzio_Input_Validator::validate_order_number($arguments['order_number']);
+        if (false === $order_number) {
+            return self::failure('missing_order_number');
+        }
+
+        $billing_email = '';
+        if (!$logged_in) {
+            if (
+                !array_key_exists('billing_email', $arguments)
+                || !is_string($arguments['billing_email'])
+                || '' === trim($arguments['billing_email'])
+            ) {
+                return self::failure('missing_billing_email');
+            }
+
+            $billing_email = Chatzio_Input_Validator::sanitize_email($arguments['billing_email']);
+            if (false === $billing_email) {
+                return self::failure('invalid_email');
+            }
+        }
+
+        if (!function_exists('wc_get_order') || !class_exists('WC_Order')) {
+            return self::failure('temporarily_unavailable');
+        }
+
+        if (class_exists('Chatzio_Order_Rate_Limiter')) {
+            $rate_limit = Chatzio_Order_Rate_Limiter::check_and_consume();
+            if (is_wp_error($rate_limit)) {
+                return self::failure('locked_out');
+            }
+        }
 
         try {
-            $order = wc_get_order((int) $number);
-            $authorized = Chatzio_Order_Authorization::authorize($order, $state['billing_email'] ?? '');
-        } catch (Throwable $error) {
-            Chatzio_Logger::log_error('Order tool exception', ['order_no' => $number]);
-            return Chatzio_Order_Result::failure('temporarily_unavailable', 'I\'m temporarily unable to check your order. Please try again shortly or contact support.');
-        }
+            $order = $logged_in
+                ? Chatzio_Order_Authorization::verify_logged_in($order_number)
+                : Chatzio_Order_Authorization::verify_guest($order_number, $billing_email);
 
-        if (!$authorized) {
-            $failures = (int) ($state['failures'] ?? 0) + 1;
-            $state['failures'] = $failures;
-            Chatzio_Order_Conversation_State::save($session_id, $state);
-            Chatzio_Logger::log_warning('Order verification failed', ['order_no' => $number, 'email' => self::mask($state['billing_email'] ?? ''), 'attempt' => $failures]);
-            if ($failures >= self::MAX_FAILURES) {
-                self::lock();
-                return Chatzio_Order_Result::failure('rate_limited', 'Too many unsuccessful attempts were made. Please wait 15 minutes before trying again or contact support for assistance.');
+            if (false === $order) {
+                $locked_out = class_exists('Chatzio_Order_Rate_Limiter')
+                    ? Chatzio_Order_Rate_Limiter::record_failure($order_number, $billing_email)
+                    : false;
+                if ($locked_out) {
+                    return self::failure('locked_out');
+                }
+                return self::failure('verification_failed');
             }
-            return Chatzio_Order_Result::failure('verification_failed', 'We couldn\'t verify an order with those details. Please check the order number and billing email and try again.');
+
+            if (class_exists('Chatzio_Order_Rate_Limiter')) {
+                Chatzio_Order_Rate_Limiter::record_success($order_number);
+            }
+
+            $order_result = Chatzio_Order_Result::from_order($order);
+            if (!is_array($order_result)) {
+                return self::failure('temporarily_unavailable');
+            }
+
+            $shipments = Chatzio_AST_Adapter::get_shipments($order);
+            $support_recommended = in_array(
+                $order_result['status_code'],
+                array('cancelled', 'refunded', 'failed'),
+                true
+            );
+
+            return array(
+                'ok'                  => true,
+                'result_type'         => 'order_status',
+                'order'               => $order_result,
+                'shipments'           => $shipments,
+                'support_recommended' => $support_recommended,
+            );
+        } catch (Throwable $exception) {
+            return self::failure('temporarily_unavailable');
+        }
+    }
+
+    /**
+     * Backward-compatible descriptive entry point.
+     *
+     * @param mixed $arguments Proposed tool arguments.
+     * @return array
+     */
+    public static function get_order_status($arguments) {
+        return self::execute($arguments);
+    }
+
+    /**
+     * Build a strict public failure payload from an approved error code.
+     *
+     * @param string $error_code Approved internal error code.
+     * @return array
+     */
+    private static function failure($error_code) {
+        $messages = array(
+            'missing_order_number'   => 'Please provide the numeric order number shown in your confirmation email.',
+            'missing_billing_email'  => 'Please provide the billing email used for the order.',
+            'invalid_email'          => 'That email address does not appear to be valid. Please enter the billing email used for the order.',
+            'verification_failed'    => 'We couldn\'t verify an order with those details. Please check the order number and billing email and try again.',
+            'locked_out'             => class_exists('Chatzio_Order_Rate_Limiter')
+                ? Chatzio_Order_Rate_Limiter::public_message()
+                : 'Too many unsuccessful attempts were made. Please wait 15 minutes before trying again or contact support for assistance.',
+            'temporarily_unavailable' => 'I\'m temporarily unable to check your order. Please try again shortly or contact support.',
+        );
+
+        if (!isset($messages[$error_code])) {
+            $error_code = 'temporarily_unavailable';
         }
 
-        $result = Chatzio_Order_Result::from_order($order);
-        Chatzio_Order_Conversation_State::verify($session_id, $result);
-        Chatzio_Logger::log_info('Order verification succeeded', ['order_no' => $number]);
-        return $result;
-    }
-
-    private static function consume() {
-        $key = 'chatzio_ot2_count_' . self::identity();
-        $count = (int) get_transient($key);
-        if ($count >= self::LOOKUP_LIMIT) { self::lock(); return false; }
-        set_transient($key, $count + 1, self::LOOKUP_WINDOW);
-        return true;
-    }
-    private static function locked() { return (bool) get_transient('chatzio_ot2_lock_' . self::identity()); }
-    private static function lock() { set_transient('chatzio_ot2_lock_' . self::identity(), 1, self::LOCKOUT_TTL); }
-    private static function identity() {
-        $ip = isset($_SERVER['REMOTE_ADDR']) && filter_var($_SERVER['REMOTE_ADDR'], FILTER_VALIDATE_IP) ? $_SERVER['REMOTE_ADDR'] : '0.0.0.0';
-        return hash_hmac('sha256', $ip, wp_salt('auth'));
-    }
-    private static function mask($email) {
-        $at = strpos($email, '@');
-        return $at > 0 ? substr($email, 0, 1) . '***' . substr($email, $at) : '***';
+        return array(
+            'ok'             => false,
+            'error_code'     => $error_code,
+            'public_message' => $messages[$error_code],
+        );
     }
 }

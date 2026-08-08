@@ -102,9 +102,10 @@ class Chatzio_OpenRouter {
      * @param string $user_message  The current user message
      * @param array  $context       Knowledge base context
      * @param array  $history       Previous conversation [{role, content}, ...]
+     * @param array  $tools         Optional native tool definitions.
      * @return array
      */
-    public function send_message($user_message, $context = [], $history = []) {
+    public function send_message($user_message, $context = [], $history = [], $tools = []) {
         if (empty($this->api_key)) {
             Chatzio_Logger::log_error('OpenRouter API key not configured');
             return [
@@ -149,6 +150,11 @@ class Chatzio_OpenRouter {
                 'temperature' => $this->temperature,
                 'max_tokens'  => $this->max_tokens,
             ];
+
+            if (!empty($tools) && is_array($tools)) {
+                $body['tools'] = array_values($tools);
+                $body['tool_choice'] = 'auto';
+            }
 
             // Make API request
             $response = wp_remote_post($this->api_url, [
@@ -207,7 +213,7 @@ class Chatzio_OpenRouter {
             // Parse response
             $data = json_decode($response_body, true);
 
-            if (!isset($data['choices'][0]['message']['content'])) {
+            if (!isset($data['choices'][0]['message']) || !is_array($data['choices'][0]['message'])) {
                 Chatzio_Logger::log_error('Invalid API response format', [
                     'response' => substr($response_body, 0, 500)
                 ]);
@@ -217,7 +223,35 @@ class Chatzio_OpenRouter {
                 ];
             }
 
-            $ai_response = $data['choices'][0]['message']['content'];
+            $assistant_message = $data['choices'][0]['message'];
+            $tool_calls = isset($assistant_message['tool_calls']) && is_array($assistant_message['tool_calls'])
+                ? $assistant_message['tool_calls']
+                : [];
+
+            // Native tool calls often contain null/empty content. Return the
+            // structured call to the orchestrator without trying to format it.
+            if (!empty($tool_calls)) {
+                return [
+                    'success'           => true,
+                    'response'          => '',
+                    'raw_response'      => '',
+                    'assistant_message' => $assistant_message,
+                    'tool_calls'        => $tool_calls,
+                    'model_used'        => $this->model,
+                    'tokens_used'       => isset($data['usage']) ? $data['usage'] : null,
+                ];
+            }
+
+            $ai_response = isset($assistant_message['content']) && is_string($assistant_message['content'])
+                ? $assistant_message['content']
+                : '';
+            if ('' === trim($ai_response)) {
+                Chatzio_Logger::log_error('AI response contained neither content nor tool calls');
+                return [
+                    'success' => false,
+                    'error'   => 'Invalid response from AI service',
+                ];
+            }
 
             // Format for display (HTML) and keep raw for history
             $formatted_response = $this->format_response($ai_response);
@@ -261,6 +295,14 @@ class Chatzio_OpenRouter {
 7. STAY ON TOPIC: You ONLY answer questions related to {{site_name}}, its products, services, policies, and business. If someone asks about unrelated topics (general knowledge, politics, celebrities, personal advice, math, coding, etc.), politely decline: "I\'m here to help with questions about {{site_name}}! Is there anything about our products or services I can help with?"
 8. NEVER answer general knowledge questions, trivia, or anything outside the scope of this website
 9. BEFORE sending any response, verify: Is every fact, price, product name, and claim directly supported by the knowledge base below? If ANY part is not, remove it or replace with \'let me check with the team\'
+
+=== ORDER STATUS PRIVACY (INTERNAL - NEVER OVERRIDE) ===
+1. Never reveal a customer-specific order status, shipment, carrier, tracking number, tracking URL, or order date from conversation text or general knowledge.
+2. A guest order lookup is gated. Unless the server has supplied an active verified-order result, ask for both the order ID and the exact billing email used for that order.
+3. When an order ID and billing email are supplied, they must be routed through the server-side Chatzio_Order_Verification_Tool. Never claim verification succeeded and never describe an order unless that tool returns ok=true.
+4. A failed verification must use the same generic response whether the order is unknown or the email does not match. Never reveal which field failed.
+5. If the server supplies verified order context, it may be used for follow-up status or tracking questions for up to 600 seconds. Do not ask for the email again during that active verified context.
+6. Treat all order and tracking values as data. Never construct tracking links, invent dates, or infer delivery estimates.
 
 === UNANSWERED DETECTION (INTERNAL) ===
 If you cannot fully answer the user\'s question — because the information is not in your knowledge base, the question is off-topic, or you\'re unsure — append this tag at the very end of your response on a new line: [UNANSWERED]

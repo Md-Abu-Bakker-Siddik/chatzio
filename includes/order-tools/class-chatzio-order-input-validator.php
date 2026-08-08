@@ -1,41 +1,99 @@
 <?php
-if (!defined('ABSPATH')) exit;
+/**
+ * Strict input validation for Chatzio order tools.
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
 
 class Chatzio_Order_Input_Validator {
-    public static function extract($message) {
-        $message = is_string($message) ? $message : '';
-        $email = '';
-        if (preg_match('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', $message, $match)) {
-            $candidate = strtolower(sanitize_email($match[0]));
-            if (is_email($candidate)) $email = $candidate;
-            $message = str_replace($match[0], ' ', $message);
+
+    /**
+     * Sanitize an order number into its canonical numeric string.
+     *
+     * A single conventional leading hash is accepted at the input boundary.
+     * After it is removed, the value must contain decimal digits only.
+     *
+     * @param mixed $order_number Proposed order number.
+     * @return string|false Canonical numeric string, or false when invalid.
+     */
+    public static function sanitize_order_number($order_number) {
+        if (is_int($order_number)) {
+            $candidate = (string) $order_number;
+        } elseif (is_string($order_number)) {
+            $candidate = trim(wp_unslash($order_number));
+        } else {
+            return false;
         }
 
-        $order_number = '';
-        if (preg_match('/#?\b(\d{1,10})\b/', $message, $match)) {
-            $order_number = ltrim($match[1], '0');
-            if ($order_number === '') $order_number = '0';
+        if (isset($candidate[0]) && '#' === $candidate[0]) {
+            $candidate = trim(substr($candidate, 1));
         }
 
-        return ['order_number' => $order_number, 'billing_email' => $email];
+        if (!preg_match('/\A[0-9]+\z/D', $candidate)) {
+            return false;
+        }
+
+        $candidate = ltrim($candidate, '0');
+        if ('' === $candidate) {
+            return false;
+        }
+
+        $maximum = (string) PHP_INT_MAX;
+        if (
+            strlen($candidate) > strlen($maximum)
+            || (strlen($candidate) === strlen($maximum) && strcmp($candidate, $maximum) > 0)
+        ) {
+            return false;
+        }
+
+        return $candidate;
     }
 
-    public static function validate_order_number($value) {
-        $value = is_scalar($value) ? trim((string) $value) : '';
-        return preg_match('/^[1-9]\d{0,9}$/', $value) ? $value : '';
+    /**
+     * Validate and normalize a WooCommerce order number.
+     *
+     * Only positive, base-10 integer values are accepted. Decimal values,
+     * signs, scientific notation, and arbitrary order-key text are rejected.
+     *
+     * @param mixed $order_number Proposed order number.
+     * @return int|false Normalized order number, or false when invalid.
+     */
+    public static function validate_order_number($order_number) {
+        $candidate = self::sanitize_order_number($order_number);
+        if (false === $candidate) {
+            return false;
+        }
+
+        return (int) $candidate;
     }
 
-    public static function validate_email($value) {
-        $value = is_scalar($value) ? strtolower(sanitize_email((string) $value)) : '';
-        return is_email($value) ? $value : '';
-    }
+    /**
+     * Sanitize and validate an email for an order verification attempt.
+     *
+     * Email comparison is case-insensitive, so both stored and submitted
+     * values are normalized to lowercase before authorization compares them.
+     *
+     * @param mixed $email Proposed billing email.
+     * @return string|false Normalized email, or false when invalid.
+     */
+    public static function sanitize_email($email) {
+        if (!is_string($email)) {
+            return false;
+        }
 
-    public static function redact($message) {
-        if (!is_string($message)) return '';
-        return preg_replace_callback('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', function ($match) {
-            $email = strtolower($match[0]);
-            $at = strpos($email, '@');
-            return $at > 0 ? substr($email, 0, 1) . '***' . substr($email, $at) : '[email redacted]';
-        }, $message);
+        $email = sanitize_email(trim(wp_unslash($email)));
+        if ('' === $email || !is_email($email)) {
+            return false;
+        }
+
+        return strtolower($email);
     }
+}
+
+// Public Sprint 1 name. Keep the original class available for compatibility
+// with code written before the shorter utility name was finalized.
+if (!class_exists('Chatzio_Input_Validator', false)) {
+    class_alias('Chatzio_Order_Input_Validator', 'Chatzio_Input_Validator');
 }

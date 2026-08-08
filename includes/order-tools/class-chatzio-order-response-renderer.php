@@ -1,71 +1,138 @@
 <?php
-if (!defined('ABSPATH')) exit;
+/**
+ * Deterministic HTML renderer for public Chatzio order results.
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
 
 class Chatzio_Order_Response_Renderer {
-    public static function render(array $result, $view = 'full') {
-        if (empty($result['ok'])) return self::message($result['public_message'] ?? 'I\'m temporarily unable to check your order. Please try again shortly.');
-        $order = $result['order'];
-        $shipments = isset($result['shipments']) && is_array($result['shipments']) ? $result['shipments'] : [];
 
-        if ($view === 'status') {
-            $message = 'Order #' . $order['number'] . ' is ' . $order['status_label'] . '.';
-            if (!empty($order['status_message'])) $message .= ' ' . $order['status_message'];
-            return self::message($message);
-        }
-        if ($view === 'carrier') {
-            $carriers = array_values(array_unique(array_filter(array_column($shipments, 'carrier'))));
-            return self::message($carriers ? 'Your shipment is being handled by ' . implode(', ', $carriers) . '.' : 'A carrier has not been added to this order yet.');
-        }
-        if ($view === 'tracking') return self::render_shipments($shipments, true);
-        if ($view === 'shipped_date') {
-            $dates = array_values(array_unique(array_filter(array_column($shipments, 'shipped_date'))));
-            return self::message($dates ? 'The shipment date is ' . implode(', ', $dates) . '.' : 'A shipment date is not available yet.');
+    /**
+     * Render allowlisted order and shipment data as secure HTML.
+     *
+     * @param array $order_result Output from Chatzio_Order_Result::from_order().
+     * @param array $shipments    Output from Chatzio_AST_Adapter::get_shipments().
+     * @return string Safe HTML, or an empty string for malformed order data.
+     */
+    public static function render_html($order_result, $shipments = array()) {
+        if (!self::is_valid_order_result($order_result)) {
+            return '';
         }
 
-        $html = '<section class="chatzio-order-result" aria-label="Verified order status">';
-        $html .= '<h3>Order #' . esc_html($order['number']) . '</h3>';
-        if (!empty($order['date'])) $html .= '<p class="chatzio-order-result__date">Placed ' . esc_html($order['date']) . '</p>';
-        $html .= '<p><strong>Status:</strong> ' . esc_html($order['status_label']) . '</p>';
-        if (!empty($order['status_message'])) $html .= '<p>' . esc_html($order['status_message']) . '</p>';
-        $html .= self::shipments_html($shipments);
-        $html .= '</section>';
+        if (!is_array($shipments)) {
+            $shipments = array();
+        }
 
-        $text = 'Order #' . $order['number'] . ' — ' . $order['status_label'];
-        if (!empty($order['status_message'])) $text .= '. ' . $order['status_message'];
+        $number = (string) $order_result['number'];
+        $date = (string) $order_result['date'];
+        $status_code = (string) $order_result['status_code'];
+        $status_message = (string) $order_result['status_message'];
+        $status_label = self::get_status_label($status_code);
+
+        $html = '<section class="chatzio-order-result" aria-live="polite">';
+        $html .= '<header class="chatzio-order-result__header">';
+        $html .= '<h3 class="chatzio-order-result__title">Order #' . esc_html($number) . '</h3>';
+        if ('' !== $date) {
+            $html .= '<p class="chatzio-order-result__date">Placed: ' . esc_html($date) . '</p>';
+        }
+        $html .= '</header>';
+        $html .= '<p class="chatzio-order-result__status">Status: <strong>' . esc_html($status_label) . '</strong></p>';
+        if ('' !== $status_message) {
+            $html .= '<p class="chatzio-order-result__message">' . esc_html($status_message) . '</p>';
+        }
+
+        $rendered_shipments = 0;
         foreach ($shipments as $shipment) {
-            $text .= ' Tracking: ' . trim(($shipment['carrier'] ? $shipment['carrier'] . ' ' : '') . $shipment['tracking_number']);
-            if ($shipment['tracking_url']) $text .= ' ' . $shipment['tracking_url'];
-        }
-        return ['html' => $html, 'raw' => $text, 'message_type' => 'order_status', 'conversation_state' => 'verified_order'];
-    }
+            if (!is_array($shipment) || empty($shipment['tracking_number'])) {
+                continue;
+            }
 
-    public static function message($message) {
-        return ['html' => '<p>' . esc_html($message) . '</p>', 'raw' => $message, 'message_type' => 'order_support', 'conversation_state' => 'order_support'];
-    }
+            $rendered_shipments++;
+            $carrier = isset($shipment['carrier']) ? (string) $shipment['carrier'] : '';
+            $tracking_number = (string) $shipment['tracking_number'];
+            $shipped_date = isset($shipment['shipped_date']) ? (string) $shipment['shipped_date'] : '';
+            $tracking_url = isset($shipment['tracking_url'])
+                ? self::validate_https_url($shipment['tracking_url'])
+                : '';
 
-    private static function render_shipments(array $shipments, $only_tracking = false) {
-        if (!$shipments) return self::message('Tracking information is not available yet. Please check again after the order ships.');
-        $html = '<div class="chatzio-order-result">' . self::shipments_html($shipments) . '</div>';
-        $text = '';
-        foreach ($shipments as $shipment) {
-            $text .= trim(($shipment['carrier'] ? $shipment['carrier'] . ': ' : '') . $shipment['tracking_number']);
-            if ($shipment['tracking_url']) $text .= ' ' . $shipment['tracking_url'];
-            $text .= "\n";
-        }
-        return ['html' => $html, 'raw' => trim($text), 'message_type' => 'order_status', 'conversation_state' => 'verified_order'];
-    }
-
-    private static function shipments_html(array $shipments) {
-        if (!$shipments) return '<p class="chatzio-order-result__notice">Tracking information is not available yet. Please check again after the order ships.</p>';
-        $html = '<div class="chatzio-order-result__shipments">';
-        foreach ($shipments as $index => $shipment) {
-            $html .= '<section class="chatzio-order-result__shipment"><h4>Shipment ' . (int) ($index + 1) . '</h4>';
-            if ($shipment['carrier']) $html .= '<p><strong>Carrier:</strong> ' . esc_html($shipment['carrier']) . '</p>';
-            $html .= '<p><strong>Tracking:</strong> <span class="chatzio-order-result__tracking">' . esc_html($shipment['tracking_number']) . '</span></p>';
-            if ($shipment['shipped_date']) $html .= '<p><strong>Shipped:</strong> ' . esc_html($shipment['shipped_date']) . '</p>';
-            if ($shipment['tracking_url']) $html .= '<p><a class="chatzio-order-result__link" href="' . esc_url($shipment['tracking_url'], ['https']) . '" target="_blank" rel="noopener noreferrer nofollow">Track shipment</a></p>';
+            $html .= '<section class="chatzio-order-shipment">';
+            $html .= '<h4 class="chatzio-order-shipment__title">Shipment ' . esc_html((string) $rendered_shipments) . '</h4>';
+            if ('' !== $carrier) {
+                $html .= '<p class="chatzio-order-shipment__carrier">Carrier: ' . esc_html($carrier) . '</p>';
+            }
+            $html .= '<p class="chatzio-order-shipment__number">Tracking: ' . esc_html($tracking_number) . '</p>';
+            if ('' !== $shipped_date) {
+                $html .= '<p class="chatzio-order-shipment__date">Shipped: ' . esc_html($shipped_date) . '</p>';
+            }
+            if ('' !== $tracking_url) {
+                $html .= '<p class="chatzio-order-shipment__action"><a class="chatzio-order-tracking-link" href="'
+                    . esc_url($tracking_url)
+                    . '" target="_blank" rel="noopener noreferrer nofollow">Track shipment</a></p>';
+            }
             $html .= '</section>';
         }
-        return $html . '</div>';
+
+        if (0 === $rendered_shipments) {
+            $html .= '<p class="chatzio-order-result__no-tracking">Tracking information is not available yet. Please check again after the order ships.</p>';
+        }
+
+        $html .= '</section>';
+
+        return $html;
+    }
+
+    /**
+     * Validate the exact allowlisted order result shape.
+     *
+     * @param mixed $result Proposed order result.
+     * @return bool
+     */
+    private static function is_valid_order_result($result) {
+        if (!is_array($result)) {
+            return false;
+        }
+
+        $required_keys = array('number', 'date', 'status_code', 'status_message');
+        if ($required_keys !== array_keys($result)) {
+            return false;
+        }
+
+        foreach ($required_keys as $key) {
+            if (!is_string($result[$key])) {
+                return false;
+            }
+        }
+
+        return '' !== $result['number'] && '' !== $result['status_code'];
+    }
+
+    /**
+     * Convert a public status code to a display label.
+     *
+     * @param string $status_code Public WooCommerce status code.
+     * @return string
+     */
+    private static function get_status_label($status_code) {
+        if (function_exists('wc_get_order_status_name')) {
+            return (string) wc_get_order_status_name($status_code);
+        }
+
+        return ucwords(str_replace('-', ' ', $status_code));
+    }
+
+    /**
+     * Revalidate tracking URLs at the output boundary.
+     *
+     * @param mixed $url Proposed tracking URL.
+     * @return string
+     */
+    private static function validate_https_url($url) {
+        if (class_exists('Chatzio_AST_Adapter')) {
+            return Chatzio_AST_Adapter::validate_tracking_url($url);
+        }
+
+        return '';
     }
 }
