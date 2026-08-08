@@ -89,41 +89,10 @@ class Chatzio_AJAX {
             }
         }
 
-        // AI-first order routing. Credentials are extracted and retained locally;
-        // the router receives redacted flags only and can never authorize a lookup.
+        // Native AI tool routing is applied later, after cache/context setup.
         $chatzio_settings = get_option('chatzio_settings', []);
         $ai_order_tools_enabled = !array_key_exists('enable_ai_order_tools', $chatzio_settings)
             || !empty($chatzio_settings['enable_ai_order_tools']);
-
-        if ($ai_order_tools_enabled && class_exists('Chatzio_AI_Tool_Orchestrator')) {
-            $orchestrator = new Chatzio_AI_Tool_Orchestrator();
-            $order_reply = $orchestrator->maybe_handle($message, $session_id, $clean_history);
-            if (is_array($order_reply)) {
-                $conversation_id = self::save_conversation(
-                    $session_id,
-                    $message,
-                    $order_reply['html'],
-                    $order_reply['raw'],
-                    [],
-                    null,
-                    [],
-                    'order_tracking'
-                );
-                if (class_exists('Chatzio_Notifications')) {
-                    Chatzio_Notifications::notify_new_conversation($session_id, Chatzio_Order_Input_Validator::redact($message), 'order_tracking');
-                }
-                wp_send_json_success([
-                    'response'           => $order_reply['html'],
-                    'raw_response'       => $order_reply['raw'],
-                    'session_id'         => $session_id,
-                    'conversation_id'    => $conversation_id,
-                    'model_used'         => 'order-tool-router',
-                    'message_type'       => $order_reply['message_type'] ?? 'order_support',
-                    'conversation_state' => $order_reply['conversation_state'] ?? 'order_support',
-                ]);
-                return;
-            }
-        }
 
         try {
             // Performance tracking

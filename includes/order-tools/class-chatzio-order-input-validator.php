@@ -10,6 +10,26 @@ if (!defined('ABSPATH')) {
 class Chatzio_Order_Input_Validator {
 
     /**
+     * Remove email addresses before conversation history or logs leave the
+     * server. Order verification receives its arguments through the approved
+     * server-side tool path instead of relying on stored transcript content.
+     *
+     * @param mixed $text Potentially sensitive customer text.
+     * @return string Redacted text.
+     */
+    public static function redact($text) {
+        if (!is_string($text)) {
+            return '';
+        }
+
+        return preg_replace(
+            '/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i',
+            '[email redacted]',
+            $text
+        );
+    }
+
+    /**
      * Sanitize an order number into its canonical numeric string.
      *
      * A single conventional leading hash is accepted at the input boundary.
